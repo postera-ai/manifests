@@ -22,7 +22,7 @@ spec:
             drop:
             - ALL
         image: public.ecr.aws/docker/library/python:3.12
-        command: ["python", "/hooks/sync.py"]
+        command: ["sh", "-c", "export HOME=/tmp && pip install --no-cache-dir --user pyyaml && export PYTHONPATH=$PYTHONPATH:/tmp/.local/lib/python3.12/site-packages && python /hooks/sync.py"]
         envFrom:
         - configMapRef:
             name: kubeflow-pipelines-profile-controller-env
@@ -38,16 +38,6 @@ spec:
               optional: true
               name: pipeline-install-config
               key: defaultPipelineRoot
-        - name: MINIO_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: mlpipeline-minio-artifact
-              key: accesskey
-        - name: MINIO_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: mlpipeline-minio-artifact
-              key: secretkey
         volumeMounts:
         - name: hooks
           mountPath: /hooks

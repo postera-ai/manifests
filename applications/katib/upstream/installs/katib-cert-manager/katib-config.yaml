@@ -24,29 +24,92 @@ runtime:
   suggestions:
     - algorithmName: random
       image: ghcr.io/kubeflow/katib/suggestion-hyperopt:v0.18.0
+      serviceAccountName: default-editor
+      resources:
+        requests:
+          memory: 500Mi
+        limits:
+          memory: 500Mi
     - algorithmName: tpe
       image: ghcr.io/kubeflow/katib/suggestion-hyperopt:v0.18.0
+      serviceAccountName: default-editor
+      resources:
+        requests:
+          memory: 500Mi
+        limits:
+          memory: 500Mi
     - algorithmName: grid
       image: ghcr.io/kubeflow/katib/suggestion-optuna:v0.18.0
+      serviceAccountName: default-editor
+      resources:
+        requests:
+          memory: 500Mi
+        limits:
+          memory: 500Mi
     - algorithmName: hyperband
       image: ghcr.io/kubeflow/katib/suggestion-hyperband:v0.18.0
+      serviceAccountName: default-editor
+      resources:
+        requests:
+          memory: 500Mi
+        limits:
+          memory: 500Mi
     - algorithmName: bayesianoptimization
       image: ghcr.io/kubeflow/katib/suggestion-skopt:v0.18.0
+      serviceAccountName: default-editor
+      resources:
+        requests:
+          memory: 500Mi
+        limits:
+          memory: 500Mi
     - algorithmName: cmaes
       image: ghcr.io/kubeflow/katib/suggestion-goptuna:v0.18.0
+      serviceAccountName: default-editor
+      resources:
+        requests:
+          memory: 500Mi
+        limits:
+          memory: 500Mi
     - algorithmName: sobol
       image: ghcr.io/kubeflow/katib/suggestion-goptuna:v0.18.0
+      serviceAccountName: default-editor
+      resources:
+        requests:
+          memory: 500Mi
+        limits:
+          memory: 500Mi
     - algorithmName: multivariate-tpe
       image: ghcr.io/kubeflow/katib/suggestion-optuna:v0.18.0
+      serviceAccountName: default-editor
+      resources:
+        requests:
+          memory: 500Mi
+        limits:
+          memory: 500Mi
     - algorithmName: enas
       image: ghcr.io/kubeflow/katib/suggestion-enas:v0.18.0
+      serviceAccountName: default-editor
       resources:
+        requests:
+          memory: 500Mi
         limits:
-          memory: 400Mi
+          memory: 500Mi
     - algorithmName: darts
       image: ghcr.io/kubeflow/katib/suggestion-darts:v0.18.0
+      serviceAccountName: default-editor
+      resources:
+        requests:
+          memory: 500Mi
+        limits:
+          memory: 500Mi
     - algorithmName: pbt
       image: ghcr.io/kubeflow/katib/suggestion-pbt:v0.18.0
+      serviceAccountName: default-editor
+      resources:
+        requests:
+          memory: 500Mi
+        limits:
+          memory: 500Mi
       persistentVolumeClaimSpec:
         accessModes:
           - ReadWriteMany

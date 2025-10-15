@@ -12,3 +12,30 @@ spec:
       protocol: HTTP
     hosts:
     - "*"
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+      - "<changeme-default-domain>"
+    tls:
+      mode: SIMPLE
+      credentialName: kubeflow-tls
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: kubeflow-https-redirect
+spec:
+  hosts:
+    - <changeme-default-domain>
+  gateways:
+    - kubeflow-gateway
+  http:
+    - match:
+        - port: 80
+      redirect:
+        uri: "/"
+        authority: "<changeme-default-domain>"
+        scheme: "https"
+        redirectCode: 301

@@ -29,4 +29,17 @@ spec:
                   key: minioServiceRegion
             - name: OBJECTSTORECONFIG_PORT
               value: ""
+            - name: OBJECTSTORECONFIG_ACCESSKEY
+              value: ""
+              valueFrom: null
+            - name: OBJECTSTORECONFIG_SECRETACCESSKEY
+              value: ""
+              valueFrom: null
           name: ml-pipeline-api-server
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ml-pipeline
+  annotations:
+    eks.amazonaws.com/role-arn: <changeme-IAM-role-for-ml-pipeline-arn>

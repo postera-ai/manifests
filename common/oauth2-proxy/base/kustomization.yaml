@@ -10,13 +10,13 @@ resources:
 - service.yaml
 - virtualservice.yaml
 
-secretGenerator:
-- name: oauth2-proxy
-  type: Opaque
-  literals:
-  - client-id=kubeflow-oidc-authservice
-  - client-secret=pUBnBOY80SnXgjibTYM9ZWNzY2xreNGQok
-  - cookie-secret=7d16fee92f8d11b8940b081b3f8b8acb
+#secretGenerator:
+#- name: oauth2-proxy
+#  type: Opaque
+#  literals:
+#  - client-id=kubeflow-oidc-authservice
+#  - client-secret=pUBnBOY80SnXgjibTYM9ZWNzY2xreNGQok
+#  - cookie-secret=7d16fee92f8d11b8940b081b3f8b8acb
 
 configMapGenerator:
 - name: oauth2-proxy

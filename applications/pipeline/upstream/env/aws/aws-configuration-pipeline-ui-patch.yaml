@@ -8,20 +8,65 @@ spec:
       labels:
         app: ml-pipeline-ui
     spec:
+      containers:
+        - name: ml-pipeline-ui
+          env:
+            - name: MINIO_NAMESPACE
+              value: ""
+              valueFrom: null
+            - name: MINIO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: pipeline-install-config
+                  key: minioServiceHost
+            - name: MINIO_PORT
+              value: ""
+            - name: MINIO_SSL
+              value: "true"
+            - name: MINIO_ACCESS_KEY
+              value: ""
+              valueFrom: null
+            - name: MINIO_SECRET_KEY
+              value: ""
+              valueFrom: null
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: pipeline-install-config
+                  key: minioServiceRegion
+            - name: AWS_DEFAULT_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: pipeline-install-config
+                  key: minioServiceRegion
+            - name: AWS_S3_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: pipeline-install-config
+                  key: minioServiceHost
+            - name: AWS_SSL
+              value: "true"
+            - name: AWS_ACCESS_KEY_ID
+              value: ""
+            - name: AWS_SECRET_ACCESS_KEY
+              value: ""
+            - name: ARGO_KEYFORMAT
+              value: "artifacts/{{ workflow.namespace }}/{{ workflow.name }}/{{ workflow.creationTimestamp.Y }}/{{ workflow.creationTimestamp.m }}/{{ workflow.creationTimestamp.d }}/{{ pod.name }}"
+            - name: ARGO_ARCHIVE_ARTIFACTORY
+              value: "s3"
+            - name: ARGO_ARCHIVE_BUCKETNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: pipeline-install-config
+                  key: bucketName
       volumes:
         - name: config-volume
           configMap:
             name: ml-pipeline-ui-configmap
-      containers:
-        - name: ml-pipeline-ui
-          env:
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: mlpipeline-minio-artifact
-                  key: accesskey
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: mlpipeline-minio-artifact
-                  key: secretkey
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ml-pipeline-ui
+  annotations:
+    eks.amazonaws.com/role-arn: <changeme-IAM-role-for-ml-pipeline-ui-arn>

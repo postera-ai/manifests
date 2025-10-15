@@ -11,4 +11,4 @@ patches:
       kind: ConfigMap
       name: dex
       namespace: auth
-
+  - path: delete-dex-passwords-secret.yaml

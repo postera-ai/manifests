@@ -22,7 +22,7 @@ patches:
 - patch: |-
     - op: replace
       path: /spec/jwtRules/0/issuer
-      value: https://oidc.eks.AWS_REGION.amazonaws.com/id/CLUSTER_ID
+      value: https://oidc.eks.us-west-2.amazonaws.com/id/<changeme-cluster-id>
   target:
     group: security.istio.io
     version: v1beta1

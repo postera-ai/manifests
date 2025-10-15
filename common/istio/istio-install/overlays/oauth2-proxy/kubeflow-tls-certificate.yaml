@@ -1,0 +1,36 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: <changeme-stack-admin-email>
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+      - dns01:
+          route53:
+            region: us-west-2
+            role: <changeme-IAM-role-for-kubeflow-cert-manager-in-r53-account-arn>
+            hostedZoneID: <changeme-R53-hosted-zone-id>
+            auth:
+              kubernetes:
+                serviceAccountRef:
+                  name: cert-manager
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kubeflow-tls
+  namespace: istio-system
+spec:
+  secretName: kubeflow-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: <changeme-default-domain>
+  dnsNames:
+    - <changeme-default-domain>
+    # TODO: add other domains here?
+    # *.<changeme-default-domain>

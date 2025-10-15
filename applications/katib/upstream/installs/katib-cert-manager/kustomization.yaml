@@ -11,8 +11,8 @@ resources:
   - ../../components/crd/
   # Katib DB manager.
   - ../../components/db-manager/
-  # Katib DB mysql.
-  - ../../components/mysql/
+#  # Katib DB mysql.
+#  - ../../components/mysql/
   # Katib UI.
   - ../../components/ui/
   # Katib webhooks.
@@ -32,7 +32,12 @@ images:
 
 patchesStrategicMerge:
   - patches/katib-cert-injection.yaml
-
+  - patches/db-manager.yaml
+# Modify katib-mysql-secrets with parameters for the DB.
+#secretGenerator:
+#  - name: katib-mysql-secrets
+#    envs:
+#      - secrets.env
 vars:
   - fieldref:
       fieldPath: metadata.namespace

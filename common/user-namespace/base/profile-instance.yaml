@@ -6,3 +6,7 @@ spec:
   owner:
     kind: User
     name: $(user)
+  plugins:
+    - kind: AwsIamForServiceAccount
+      spec:
+        awsIamRole: <changeme-IAM-role-for-default-user-arn>

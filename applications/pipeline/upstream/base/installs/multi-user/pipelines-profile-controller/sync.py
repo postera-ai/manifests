@@ -14,6 +14,7 @@
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
+import yaml
 import os
 import base64
 
@@ -27,7 +28,7 @@ def main():
 def get_settings_from_env(controller_port=None,
                           visualization_server_image=None, frontend_image=None,
                           visualization_server_tag=None, frontend_tag=None, disable_istio_sidecar=None,
-                          minio_access_key=None, minio_secret_key=None, kfp_default_pipeline_root=None):
+                          kfp_default_pipeline_root=None):
     """
     Returns a dict of settings from environment variables relevant to the controller
 
@@ -41,8 +42,6 @@ def get_settings_from_env(controller_port=None,
         frontend_image: ghcr.io/kubeflow/kfp-frontend
         frontend_tag: value of KFP_VERSION environment variable
         disable_istio_sidecar: Required (no default)
-        minio_access_key: Required (no default)
-        minio_secret_key: Required (no default)
     """
     settings = dict()
     settings["controller_port"] = \
@@ -74,14 +73,6 @@ def get_settings_from_env(controller_port=None,
         disable_istio_sidecar if disable_istio_sidecar is not None \
             else os.environ.get("DISABLE_ISTIO_SIDECAR") == "true"
 
-    settings["minio_access_key"] = \
-        minio_access_key or \
-        base64.b64encode(bytes(os.environ.get("MINIO_ACCESS_KEY"), 'utf-8')).decode('utf-8')
-
-    settings["minio_secret_key"] = \
-        minio_secret_key or \
-        base64.b64encode(bytes(os.environ.get("MINIO_SECRET_KEY"), 'utf-8')).decode('utf-8')
-
     # KFP_DEFAULT_PIPELINE_ROOT is optional
     settings["kfp_default_pipeline_root"] = \
         kfp_default_pipeline_root or \
@@ -92,8 +83,7 @@ def get_settings_from_env(controller_port=None,
 
 def server_factory(visualization_server_image,
                    visualization_server_tag, frontend_image, frontend_tag,
-                   disable_istio_sidecar, minio_access_key,
-                   minio_secret_key, kfp_default_pipeline_root=None,
+                   disable_istio_sidecar, kfp_default_pipeline_root=None,
                    url="", controller_port=8080):
     """
     Returns an HTTPServer populated with Handler with customized settings
@@ -120,7 +110,20 @@ def server_factory(visualization_server_image,
                         "namespace": namespace,
                     },
                     "data": {
-                        "defaultPipelineRoot": kfp_default_pipeline_root,
+                        "defaultPipelineRoot": f"{kfp_default_pipeline_root}/{namespace}",
+                        "providers": yaml.dump({
+                            "s3": {
+                                "default": {
+                                    "endpoint": "s3.us-west-2.amazonaws.com",
+                                    "disableSSL": False,
+                                    "region": "us-west-2",
+                                    "forcePathStyle": True,
+                                    "credentials": {
+                                        "fromEnv": True
+                                    },
+                                }
+                            }
+                        })
                     },
                 }]
 
@@ -300,23 +303,49 @@ def server_factory(visualization_server_image,
                                     }],
                                     "env": [
                                         {
+                                            "name": "MINIO_NAMESPACE",
+                                            "value": ""
+                                        },
+                                        {
+                                            "name": "MINIO_HOST",
+                                            "value": "s3.us-west-2.amazonaws.com"
+                                        },
+                                        {
+                                            "name": "MINIO_PORT",
+                                            "value": ""
+                                        },
+                                        {
+                                            "name": "MINIO_SSL",
+                                            "value": "true"
+                                        },
+                                        {
                                             "name": "MINIO_ACCESS_KEY",
-                                            "valueFrom": {
-                                                "secretKeyRef": {
-                                                    "key": "accesskey",
-                                                    "name": "mlpipeline-minio-artifact"
-                                                }
-                                            }
+                                            "value": ""
                                         },
                                         {
                                             "name": "MINIO_SECRET_KEY",
-                                            "valueFrom": {
-                                                "secretKeyRef": {
-                                                    "key": "secretkey",
-                                                    "name": "mlpipeline-minio-artifact"
-                                                }
-                                            }
-                                        }
+                                            "value": ""
+                                        },
+                                        {
+                                            "name": "AWS_REGION",
+                                            "value": "us-west-2"
+                                        },
+                                        {
+                                            "name": "AWS_S3_ENDPOINT",
+                                            "value": "s3.us-west-2.amazonaws.com"
+                                        },
+                                        {
+                                            "name": "AWS_SSL",
+                                            "value": "true"
+                                        },
+                                        {
+                                            "name": "AWS_ACCESS_KEY_ID",
+                                            "value": ""
+                                        },
+                                        {
+                                            "name": "AWS_SECRET_ACCESS_KEY",
+                                            "value": ""
+                                        },
                                     ],
                                     "resources": {
                                         "requests": {
@@ -361,19 +390,6 @@ def server_factory(visualization_server_image,
             ]
             print('Received request:\n', json.dumps(parent, sort_keys=True))
             print('Desired resources except secrets:\n', json.dumps(desired_resources, sort_keys=True))
-            # Moved after the print argument because this is sensitive data.
-            desired_resources.append({
-                "apiVersion": "v1",
-                "kind": "Secret",
-                "metadata": {
-                    "name": "mlpipeline-minio-artifact",
-                    "namespace": namespace,
-                },
-                "data": {
-                    "accesskey": minio_access_key,
-                    "secretkey": minio_secret_key,
-                },
-            })
 
             return {"status": desired_status, "attachments": desired_resources}
 

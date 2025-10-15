@@ -13,8 +13,8 @@ resources:
 generatorOptions:
   disableNameSuffixHash: true
 
-secretGenerator:
-- name: dex-oidc-client
-  type: Opaque
-  envs:
-  - secret_params.env
+#secretGenerator:
+#- name: dex-oidc-client
+#  type: Opaque
+#  envs:
+#  - secret_params.env
