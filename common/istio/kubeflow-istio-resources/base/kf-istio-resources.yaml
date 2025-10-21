@@ -18,6 +18,7 @@ spec:
       protocol: HTTPS
     hosts:
       - "<changeme-default-domain>"
+      - "*.<changeme-default-user-namespace>.<changeme-default-domain>"
     tls:
       mode: SIMPLE
       credentialName: kubeflow-tls
@@ -28,7 +29,8 @@ metadata:
   name: kubeflow-https-redirect
 spec:
   hosts:
-    - <changeme-default-domain>
+    - "<changeme-default-domain>"
+    - "*.<changeme-default-user-namespace>.<changeme-default-domain>"
   gateways:
     - kubeflow-gateway
   http:
@@ -36,6 +38,5 @@ spec:
         - port: 80
       redirect:
         uri: "/"
-        authority: "<changeme-default-domain>"
         scheme: "https"
         redirectCode: 301

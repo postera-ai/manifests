@@ -754,6 +754,7 @@ data:
   REPAIR_INIT_CONTAINER_NAME: istio-validation
   REPAIR_LABEL_PODS: 'false'
   REPAIR_REPAIR_PODS: 'true'
+  CNI_TAINT_ENABLED: "true"
 kind: ConfigMap
 metadata:
   labels:

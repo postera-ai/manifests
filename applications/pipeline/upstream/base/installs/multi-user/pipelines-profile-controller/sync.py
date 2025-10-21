@@ -136,7 +136,7 @@ def server_factory(visualization_server_image,
                     len(attachments["Deployment.apps/v1"]) == 2 and
                     len(attachments["Service.v1"]) == 2 and
                     len(attachments["DestinationRule.networking.istio.io/v1alpha3"]) == 1 and
-                    len(attachments["AuthorizationPolicy.security.istio.io/v1beta1"]) == 1 and
+                    len(attachments["AuthorizationPolicy.security.istio.io/v1beta1"]) == 2 and
                     "True" or "False"
             }
 
@@ -244,6 +244,24 @@ def server_factory(visualization_server_image,
                                 }
                             }]
                         }]
+                    }
+                },
+                # Added to allow all oauth2-proxy auth'ed requests to access KServe inference service predictors
+                {
+                    "apiVersion": "security.istio.io/v1beta1",
+                    "kind": "AuthorizationPolicy",
+                    "metadata": {
+                        "name": "allow-oauth2-proxy-to-all-predictors",
+                        "namespace": namespace,
+                    },
+                    "spec": {
+                        "action": "ALLOW",
+                        "selector": {
+                            "matchLabels": {
+                                "component": "predictor"
+                            }
+                        },
+                        "rules": [{}]
                     }
                 },
                 {

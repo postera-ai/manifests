@@ -29,8 +29,7 @@ spec:
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
-  commonName: <changeme-default-domain>
+  commonName: "<changeme-default-domain>"
   dnsNames:
-    - <changeme-default-domain>
-    # TODO: add other domains here?
-    # *.<changeme-default-domain>
+    - "<changeme-default-domain>"
+    - "*.<changeme-default-user-namespace>.<changeme-default-domain>"
