@@ -8086,6 +8086,10 @@ metadata:
   annotations:
     knative.dev/example-checksum: "54abd711"
 data:
+  metrics.backend-destination: "prometheus"
+  metrics.request-metrics-backend-destination: "prometheus"
+  metrics.reporting-period-seconds: "5"
+  metrics.request-metrics-reporting-period-seconds: "5"
   _example: |
     ################################
     #                              #
