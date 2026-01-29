@@ -8088,8 +8088,8 @@ metadata:
 data:
   metrics.backend-destination: "prometheus"
   metrics.request-metrics-backend-destination: "prometheus"
-  metrics.reporting-period-seconds: "5"
-  metrics.request-metrics-reporting-period-seconds: "5"
+  metrics.reporting-period-seconds: "15"
+  metrics.request-metrics-reporting-period-seconds: "15"
   _example: |
     ################################
     #                              #
