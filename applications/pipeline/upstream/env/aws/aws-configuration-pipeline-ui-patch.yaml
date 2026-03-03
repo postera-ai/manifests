@@ -51,7 +51,7 @@ spec:
             - name: AWS_SECRET_ACCESS_KEY
               value: ""
             - name: ARGO_KEYFORMAT
-              value: "artifacts/{{ workflow.namespace }}/{{ workflow.name }}/{{ workflow.creationTimestamp.Y }}/{{ workflow.creationTimestamp.m }}/{{ workflow.creationTimestamp.d }}/{{ pod.name }}"
+              value: "artifacts/{{ workflow.namespace }}/{{ workflow.creationTimestamp.Y }}/{{ workflow.creationTimestamp.m }}/{{ workflow.creationTimestamp.d }}/{{ pod.name }}"
             - name: ARGO_ARCHIVE_ARTIFACTORY
               value: "s3"
             - name: ARGO_ARCHIVE_BUCKETNAME

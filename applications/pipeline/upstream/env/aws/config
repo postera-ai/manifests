@@ -7,7 +7,7 @@ artifactRepository:
         endpoint: s3.us-west-2.amazonaws.com,
         insecure: false,
         useSDKCreds: true,
-        keyFormat: "artifacts/{{ workflow.namespace }}/{{ workflow.name }}/{{ workflow.creationTimestamp.Y }}/{{ workflow.creationTimestamp.m }}/{{ workflow.creationTimestamp.d }}/{{ pod.name }}"
+        keyFormat: "artifacts/{{ workflow.namespace }}/{{ workflow.creationTimestamp.Y }}/{{ workflow.creationTimestamp.m }}/{{ workflow.creationTimestamp.d }}/{{ pod.name }}"
     },
     archiveLogs: true
 }
