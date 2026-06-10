@@ -136,7 +136,7 @@ def server_factory(visualization_server_image,
                     len(attachments["Deployment.apps/v1"]) == 2 and
                     len(attachments["Service.v1"]) == 2 and
                     len(attachments["DestinationRule.networking.istio.io/v1alpha3"]) == 1 and
-                    len(attachments["AuthorizationPolicy.security.istio.io/v1beta1"]) == 2 and
+                    len(attachments["AuthorizationPolicy.security.istio.io/v1beta1"]) == 3 and
                     "True" or "False"
             }
 
@@ -259,6 +259,27 @@ def server_factory(visualization_server_image,
                         "selector": {
                             "matchLabels": {
                                 "component": "predictor"
+                            }
+                        },
+                        "rules": [{}]
+                    }
+                },
+                # Parallel to the predictor policy above, but for plain Knative
+                # Services (ksvc) that aren't KServe InferenceServices. They sit in
+                # the same namespace default-deny and carry `component: knative-service`
+                # instead of `component: predictor`, so they need their own ALLOW.
+                {
+                    "apiVersion": "security.istio.io/v1beta1",
+                    "kind": "AuthorizationPolicy",
+                    "metadata": {
+                        "name": "allow-oauth2-proxy-to-all-knative-services",
+                        "namespace": namespace,
+                    },
+                    "spec": {
+                        "action": "ALLOW",
+                        "selector": {
+                            "matchLabels": {
+                                "component": "knative-service"
                             }
                         },
                         "rules": [{}]
