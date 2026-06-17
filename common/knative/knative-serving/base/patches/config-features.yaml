@@ -6,3 +6,4 @@ metadata:
 data:
   kubernetes.podspec-tolerations: "enabled"
   kubernetes.podspec-nodeselector: "enabled"
+  kubernetes.podspec-topologyspreadconstraints: "enabled"
