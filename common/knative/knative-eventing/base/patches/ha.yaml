@@ -1,0 +1,16 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: eventing-webhook
+  namespace: knative-eventing
+spec:
+  minReplicas: 2
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: eventing-webhook
+  namespace: knative-eventing
+spec:
+  minAvailable: null
+  maxUnavailable: 1

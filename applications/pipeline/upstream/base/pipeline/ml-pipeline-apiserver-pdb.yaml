@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ml-pipeline
+  labels:
+    app: ml-pipeline
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ml-pipeline

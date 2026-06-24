@@ -14,6 +14,13 @@ spec:
       labels:
         app.kubernetes.io/name: oauth2-proxy
     spec:
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: oauth2-proxy
       volumes:
       - name: oauth2-proxy-config
         configMap:

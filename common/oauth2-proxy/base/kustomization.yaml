@@ -9,6 +9,7 @@ resources:
 - serviceaccount.yaml
 - service.yaml
 - virtualservice.yaml
+- pod-disruption-budget.yaml
 
 #secretGenerator:
 #- name: oauth2-proxy

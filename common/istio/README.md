@@ -57,7 +57,10 @@ scripts/synchronize-istio-manifests.sh
 
 ### Kustomize modifications
 
-- Remove PodDisruptionBudgets for compatibility
+- Keep the upstream `minAvailable: 1` PodDisruptionBudgets on istio-ingressgateway,
+  istiod, and cluster-local-gateway (we no longer `$patch: delete` them), each paired
+  with HPA `minReplicas: 2` and a soft hostname topology spread, so node rolls drain one
+  pod at a time without dropping the data path
 - Add AuthorizationPolicies for security
 - Add Gateway CRs and namespace objects
 - Configure TCP KeepAlives
