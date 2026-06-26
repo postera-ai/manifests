@@ -5,7 +5,7 @@ metadata:
     app: dex
   name: dex
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: dex
@@ -15,6 +15,13 @@ spec:
         app: dex
     spec:
       serviceAccountName: dex
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: dex
       containers:
       - image: ghcr.io/dexidp/dex:v2.41.1
         name: dex
@@ -43,11 +50,11 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        #readinessProbe:
-        #  httpGet:
-        #    path: /healthz
-        #    port: 5556
-        #    scheme: HTTPS
+        readinessProbe:
+          httpGet:
+            path: /dex/healthz
+            port: 5556
+            scheme: HTTP
       volumes:
       - name: config
         configMap:

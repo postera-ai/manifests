@@ -9,6 +9,7 @@ resources:
 - deployment.yaml
 - service.yaml
 - dex-passwords.yaml
+- pod-disruption-budget.yaml
 
 generatorOptions:
   disableNameSuffixHash: true

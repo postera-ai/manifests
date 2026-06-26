@@ -22,3 +22,4 @@ patches:
     namespace: knative-serving
     name: "(autoscaler|activator|controller|net-istio-webhook|webhook|net-istio-controller)"
 - path: patches/config-features.yaml
+- path: patches/ha.yaml

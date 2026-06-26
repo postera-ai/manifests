@@ -9,4 +9,4 @@ resources:
 - gateway.yaml
 
 patches:
-- path: patches/remove-pdb.yaml
+- path: patches/cluster-local-gateway-ha.yaml

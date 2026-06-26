@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - metadata-writer
   - ml-pipeline-apiserver-deployment.yaml
+  - ml-pipeline-apiserver-pdb.yaml
   - ml-pipeline-apiserver-role.yaml
   - ml-pipeline-apiserver-rolebinding.yaml
   - ml-pipeline-apiserver-sa.yaml
@@ -16,6 +17,7 @@ resources:
   - ml-pipeline-scheduledworkflow-rolebinding.yaml
   - ml-pipeline-scheduledworkflow-sa.yaml
   - ml-pipeline-ui-deployment.yaml
+  - ml-pipeline-ui-pdb.yaml
   - ml-pipeline-ui-configmap.yaml
   - ml-pipeline-ui-role.yaml
   - ml-pipeline-ui-rolebinding.yaml
