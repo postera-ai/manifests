@@ -1,0 +1,34 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ingressgateway-connection-idle-timeout
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+  # Close idle connections at the gateway before the fronting NLB silently reaps
+  # them. The NLB's tcp.idle_timeout is 900s (istio-ingressgateway-lb-patch.yaml);
+  # Envoy's default connection idle timeout is 1h, so the NLB always wins the race
+  # and blackholes a still-pooled keep-alive, which clients see as
+  # RemoteDisconnected on reuse. common_http_protocol_options.idle_timeout is the
+  # *connection* idle timeout — it only fires when the connection has no active
+  # streams, so it cannot interrupt an in-flight request (e.g. a long KServe
+  # inference). It is distinct from stream_idle_timeout / route timeouts, which
+  # we deliberately do not touch.
+  - applyTo: NETWORK_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+    patch:
+      operation: MERGE
+      value:
+        name: envoy.filters.network.http_connection_manager
+        typed_config:
+          '@type': type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          common_http_protocol_options:
+            idle_timeout: 600s
