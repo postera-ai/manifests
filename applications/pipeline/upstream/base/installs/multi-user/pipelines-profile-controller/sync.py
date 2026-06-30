@@ -15,33 +15,17 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import os
-import base64
 import hashlib
 
-# From awscli installed in alpine/k8s image
-import botocore.session
-
-S3_BUCKET_NAME = 'mlpipeline'
-
-session = botocore.session.get_session()
-# S3 client for lifecycle policy management
-s3_endpoint_url = os.environ.get("S3_ENDPOINT_URL", "http://seaweedfs.kubeflow:8333")
-s3 = session.create_client('s3', region_name='foobar', endpoint_url=s3_endpoint_url)
+# This overlay targets external S3 (via IRSA) + RDS, not the in-cluster SeaweedFS
+# that upstream's profile controller provisions. We therefore drop upstream's
+# botocore IAM/S3 client machinery (per-namespace access-key creation, the
+# mlpipeline-minio-artifact Secret, and the bucket lifecycle policy): artifact
+# auth is the pod's IRSA role from the default credential chain, not static keys.
 
 
 def _normalize_domain(domain):
     return domain if domain.startswith('.') else '.' + domain
-
-
-def create_iam_client():
-    # To interact with SeaweedFS user management. Region does not matter.
-    endpoint_url = os.environ.get("AWS_ENDPOINT_URL")
-    if endpoint_url:
-        return session.create_client('iam', region_name='foobar', endpoint_url=endpoint_url)
-    return session.create_client('iam', region_name='foobar')
-
-
-iam = create_iam_client()
 
 
 def main():
@@ -55,9 +39,8 @@ def get_settings_from_env(controller_port=None,
                           frontend_tag=None,
                           disable_istio_sidecar=None,
                           artifacts_proxy_enabled=None,
-                          artifact_retention_days=None,
                           cluster_domain=None,
-                          object_store_host=None):
+                          kfp_default_pipeline_root=None):
     """
     Returns a dict of settings from environment variables relevant to the controller
 
@@ -83,17 +66,9 @@ def get_settings_from_env(controller_port=None,
         artifacts_proxy_enabled or \
         os.environ.get("ARTIFACTS_PROXY_ENABLED", "false")
 
-    settings["artifact_retention_days"] = \
-        artifact_retention_days or \
-        os.environ.get("ARTIFACT_RETENTION_DAYS", -1)
-
     settings["cluster_domain"] = \
         cluster_domain or \
         os.environ.get("CLUSTER_DOMAIN", ".svc.cluster.local")
-
-    settings["object_store_host"] = \
-        object_store_host or \
-        os.environ.get("OBJECT_STORE_HOST", "seaweedfs")
 
     # Look for specific tags for each image first, falling back to
     # previously used KFP_VERSION environment variable for backwards
@@ -107,6 +82,12 @@ def get_settings_from_env(controller_port=None,
         disable_istio_sidecar if disable_istio_sidecar is not None \
             else os.environ.get("DISABLE_ISTIO_SIDECAR") == "true"
 
+    # KFP_DEFAULT_PIPELINE_ROOT is the external S3 root, e.g.
+    # s3://<bucket>/v2/artifacts (wired from pipeline-install-config).
+    settings["kfp_default_pipeline_root"] = \
+        kfp_default_pipeline_root or \
+        os.environ.get("KFP_DEFAULT_PIPELINE_ROOT")
+
     return settings
 
 
@@ -114,66 +95,14 @@ def server_factory(frontend_image,
                    frontend_tag,
                    disable_istio_sidecar,
                    artifacts_proxy_enabled,
-                   artifact_retention_days,
                    cluster_domain=".svc.cluster.local",
-                   object_store_host="seaweedfs",
+                   kfp_default_pipeline_root=None,
                    url="",
                    controller_port=8080):
     """
     Returns an HTTPServer populated with Handler with customized settings
     """
     class Controller(BaseHTTPRequestHandler):
-        def upsert_lifecycle_policy(self, bucket_name, artifact_retention_days):
-            """Configures or deletes the lifecycle policy based on the artifact_retention_days string."""
-            try:
-                retention_days = int(artifact_retention_days)
-            except ValueError:
-                print(f"ERROR: ARTIFACT_RETENTION_DAYS value '{artifact_retention_days}' is not a valid integer. Aborting policy update.")
-                return
-
-            # To disable lifecycle policy we need to delete it
-            if retention_days <= 0:
-                print(f"ARTIFACT_RETENTION_DAYS is non-positive ({retention_days} days). Attempting to delete lifecycle policy.")
-                try:
-                    response = s3.get_bucket_lifecycle_configuration(Bucket=bucket_name)
-                    # Check if there are any enabled rules
-                    has_enabled_rules = any(rule.get('Status') == 'Enabled' for rule in response.get('Rules', []))
-
-                    if has_enabled_rules:
-                        s3.delete_bucket_lifecycle(Bucket=bucket_name)
-                        print("Successfully deleted lifecycle policy.")
-                    else:
-                        print("No enabled lifecycle rules found to delete.")
-                except Exception:
-                    print(f"Warning: No lifecycle policy exists")
-                return
-
-            # Create/update lifecycle policy
-            life_cycle_policy = {
-                "Rules": [
-                    {
-                        "Status": "Enabled",
-                        "Filter": {"Prefix": "private-artifacts"},
-                        "Expiration": {"Days": retention_days},
-                        "ID": "private-artifacts",
-                    },
-                ]
-            }
-            print('upsert_lifecycle_policy:', life_cycle_policy)
-
-            try:
-                api_response = s3.put_bucket_lifecycle_configuration(
-                    Bucket=bucket_name,
-                    LifecycleConfiguration = life_cycle_policy
-                )
-                print('Lifecycle policy configured successfully:', api_response)
-            except Exception as exception:
-                if hasattr(exception, 'response') and 'Error' in exception.response:
-                    print(f"ERROR: Failed to configure lifecycle policy: {exception.response['Error']['Code']} - {exception}")
-                else:
-                    print(f"ERROR: Failed to configure lifecycle policy: {exception}")
-
-
         def sync(self, parent, attachments):
             # parent is a namespace
             namespace = parent.get("metadata", {}).get("name")
@@ -184,14 +113,63 @@ def server_factory(frontend_image,
             if pipeline_enabled != "true":
                 return {"status": {}, "attachments": []}
 
+            proxy_enabled = artifacts_proxy_enabled.lower() == "true"
+
             # Compute status based on observed state.
+            #
+            # Counts MUST match exactly what this hook attaches, or every profile
+            # namespace stays kubeflow-pipelines-ready=False:
+            #   Secret == 0          no per-namespace secret (IRSA, no static keys)
+            #   ConfigMap == 3       kfp-launcher + metadata-grpc-configmap + artifact-repositories
+            #   AuthorizationPolicy == 2  the two oauth2-proxy ALLOW policies below
+            #   Deployment/Service   only the artifact fetcher, gated on the proxy flag
+            # No DestinationRule clause: the visualization-server (and its mTLS
+            # DestinationRule) was dropped upstream and we do not re-add it.
             desired_status = {
                 "kubeflow-pipelines-ready":
-                    len(attachments["Secret.v1"]) == 1 and
+                    len(attachments["Secret.v1"]) == 0 and
                     len(attachments["ConfigMap.v1"]) == 3 and
-                    len(attachments["Deployment.apps/v1"]) == (1 if artifacts_proxy_enabled.lower() == "true" else 0) and
-                    len(attachments["Service.v1"]) == (1 if artifacts_proxy_enabled.lower() == "true" else 0) and
+                    len(attachments["Deployment.apps/v1"]) == (1 if proxy_enabled else 0) and
+                    len(attachments["Service.v1"]) == (1 if proxy_enabled else 0) and
+                    len(attachments["AuthorizationPolicy.security.istio.io/v1beta1"]) == 2 and
                     "True" or "False"
+            }
+
+            # The kfp-launcher S3 provider uses the pod's IRSA role
+            # (credentials.fromEnv: true) — no static access/secret keys.
+            kfp_launcher_data = {
+                "defaultPipelineRoot": f"{kfp_default_pipeline_root}/{namespace}",
+                "clusterDomain": cluster_domain,
+                "providers": json.dumps({
+                    "s3": {
+                        "default": {
+                            "endpoint": "s3.us-west-2.amazonaws.com",
+                            "disableSSL": False,
+                            "region": "us-west-2",
+                            "forcePathStyle": True,
+                            "credentials": {
+                                "fromEnv": True
+                            },
+                        }
+                    }
+                })
+            }
+
+            # Argo's per-namespace artifact repository, pointing at external S3
+            # via the SDK credential chain (IRSA). useSDKCreds replaces the
+            # accessKeySecret/secretKeySecret refs upstream used for SeaweedFS.
+            # Bucket is taken from KFP_DEFAULT_PIPELINE_ROOT (s3://<bucket>/...).
+            artifact_bucket = \
+                kfp_default_pipeline_root.split("/")[2] if kfp_default_pipeline_root else ""
+            artifact_repository = {
+                "archiveLogs": True,
+                "s3": {
+                    "endpoint": "s3.us-west-2.amazonaws.com",
+                    "bucket": artifact_bucket,
+                    "region": "us-west-2",
+                    "useSDKCreds": True,
+                    "keyFormat": f"artifacts/{namespace}/{{{{workflow.creationTimestamp.Y}}}}/{{{{workflow.creationTimestamp.m}}}}/{{{{workflow.creationTimestamp.d}}}}/{{{{pod.name}}}}",
+                }
             }
 
             # Generate the desired attachment object(s).
@@ -203,10 +181,7 @@ def server_factory(frontend_image,
                         "name": "kfp-launcher",
                         "namespace": namespace,
                     },
-                    "data": {
-                        "defaultPipelineRoot": f"minio://{S3_BUCKET_NAME}/private-artifacts/{namespace}/v2/artifacts",
-                        "clusterDomain": cluster_domain,
-                    },
+                    "data": kfp_launcher_data,
                 },
                 {
                     "apiVersion": "v1",
@@ -232,29 +207,55 @@ def server_factory(frontend_image,
                         }
                     },
                     "data": {
-                        "default-namespaced": json.dumps({
-                            "archiveLogs": True,
-                            "s3": {
-                                "endpoint": f"{object_store_host}.kubeflow{_normalize_domain(cluster_domain)}:9000",
-                                "bucket": S3_BUCKET_NAME,
-                                "keyFormat": f"private-artifacts/{namespace}/{{{{workflow.name}}}}/{{{{workflow.creationTimestamp.Y}}}}/{{{{workflow.creationTimestamp.m}}}}/{{{{workflow.creationTimestamp.d}}}}/{{{{pod.name}}}}",
-                                "insecure": True,
-                                "accessKeySecret": {
-                                    "name": "mlpipeline-minio-artifact",
-                                    "key": "accesskey",
-                                },
-                                "secretKeySecret": {
-                                    "name": "mlpipeline-minio-artifact",
-                                    "key": "secretkey",
-                                }
+                        "default-namespaced": json.dumps(artifact_repository)
+                    }
+                },
+                # Added to allow all oauth2-proxy auth'ed requests to access KServe inference service predictors
+                {
+                    "apiVersion": "security.istio.io/v1beta1",
+                    "kind": "AuthorizationPolicy",
+                    "metadata": {
+                        "name": "allow-oauth2-proxy-to-all-predictors",
+                        "namespace": namespace,
+                    },
+                    "spec": {
+                        "action": "ALLOW",
+                        "selector": {
+                            "matchLabels": {
+                                "component": "predictor"
                             }
-                        })
+                        },
+                        "rules": [{}]
+                    }
+                },
+                # Parallel to the predictor policy above, but for plain Knative
+                # Services (ksvc) that aren't KServe InferenceServices. They sit in
+                # the same namespace default-deny and carry `component: knative-service`
+                # instead of `component: predictor`, so they need their own ALLOW.
+                {
+                    "apiVersion": "security.istio.io/v1beta1",
+                    "kind": "AuthorizationPolicy",
+                    "metadata": {
+                        "name": "allow-oauth2-proxy-to-all-knative-services",
+                        "namespace": namespace,
+                    },
+                    "spec": {
+                        "action": "ALLOW",
+                        "selector": {
+                            "matchLabels": {
+                                "component": "knative-service"
+                            }
+                        },
+                        "rules": [{}]
                     }
                 },
             ]
 
-            # Add artifact fetcher related resources if enabled
-            if artifacts_proxy_enabled.lower() == "true":
+            # Add artifact fetcher related resources if enabled. The fetcher
+            # talks to S3 via IRSA (the namespace's default-editor SA role), so
+            # the MINIO_* access keys are left empty rather than sourced from a
+            # secret.
+            if proxy_enabled:
                 desired_resources.extend([
                     {
                         "apiVersion": "apps/v1",
@@ -295,21 +296,23 @@ def server_factory(frontend_image,
                                         "env": [
                                             {
                                                 "name": "MINIO_ACCESS_KEY",
-                                                "valueFrom": {
-                                                    "secretKeyRef": {
-                                                        "key": "accesskey",
-                                                        "name": "mlpipeline-minio-artifact"
-                                                    }
-                                                }
+                                                "value": ""
                                             },
                                             {
                                                 "name": "MINIO_SECRET_KEY",
-                                                "valueFrom": {
-                                                    "secretKeyRef": {
-                                                        "key": "secretkey",
-                                                        "name": "mlpipeline-minio-artifact"
-                                                    }
-                                                }
+                                                "value": ""
+                                            },
+                                            {
+                                                "name": "AWS_REGION",
+                                                "value": "us-west-2"
+                                            },
+                                            {
+                                                "name": "AWS_S3_ENDPOINT",
+                                                "value": "s3.us-west-2.amazonaws.com"
+                                            },
+                                            {
+                                                "name": "AWS_SSL",
+                                                "value": "true"
                                             },
                                             {
                                                 "name": "ML_PIPELINE_SERVICE_HOST",
@@ -372,58 +375,6 @@ def server_factory(frontend_image,
 
             print('Received request:\n', json.dumps(parent, sort_keys=True))
             print('Desired resources except secrets:\n', json.dumps(desired_resources, sort_keys=True))
-
-            # Moved after the print argument because this is sensitive data.
-
-            # Check if secret is already there when the controller made the request. If yes, then
-            # use it. Else create a new credentials on seaweedfs for the namespace.
-            if s3_secret := attachments["Secret.v1"].get(f"{namespace}/mlpipeline-minio-artifact"):
-                desired_resources.append(s3_secret)
-                print('Using existing secret')
-            else:
-                print('Creating new access key.')
-                s3_access_key = iam.create_access_key(UserName=namespace)
-                # Use the AWS IAM API of seaweedfs to manage access policies to bucket.
-                # This policy ensures that a user can only access artifacts from his own profile.
-                iam.put_user_policy(
-                    UserName=namespace,
-                    PolicyName=f"KubeflowProject{namespace}",
-                    PolicyDocument=json.dumps(
-                        {
-                            "Version": "2012-10-17",
-                            "Statement": [{
-                                "Effect": "Allow",
-                                "Action": [
-                                    "s3:Put*",
-                                    "s3:Get*",
-                                    "s3:List*"
-                                ],
-                                "Resource": [
-                                    f"arn:aws:s3:::{S3_BUCKET_NAME}/artifacts/*",
-                                    f"arn:aws:s3:::{S3_BUCKET_NAME}/private-artifacts/{namespace}/*",
-                                    f"arn:aws:s3:::{S3_BUCKET_NAME}/private/{namespace}/*",
-                                    f"arn:aws:s3:::{S3_BUCKET_NAME}/shared/*",
-                                ]
-                            }]
-                        })
-                )
-
-                self.upsert_lifecycle_policy(S3_BUCKET_NAME, artifact_retention_days)
-
-                desired_resources.insert(
-                    0,
-                    {
-                        "apiVersion": "v1",
-                        "kind": "Secret",
-                        "metadata": {
-                            "name": "mlpipeline-minio-artifact",
-                            "namespace": namespace,
-                        },
-                        "data": {
-                            "accesskey": base64.b64encode(s3_access_key["AccessKey"]["AccessKeyId"].encode('utf-8')).decode("utf-8"),
-                            "secretkey": base64.b64encode(s3_access_key["AccessKey"]["SecretAccessKey"].encode('utf-8')).decode("utf-8"),
-                    },
-                })
 
             return {"status": desired_status, "attachments": desired_resources}
 

@@ -1,305 +1,156 @@
 import os
 from unittest import mock
 import threading
-import sync
 from sync import get_settings_from_env, server_factory
 import json
 
 import pytest
 import requests
 
-# Data sets passed to server
-DATA_INCORRECT_CHILDREN = {
-    "parent": {
-        "metadata": {
-            "labels": {
-                "pipelines.kubeflow.org/enabled": "true"
-            },
-            "name": "myName"
-        }
-    },
-    "children": {
-        "Secret.v1": [],
-        "ConfigMap.v1": [],
-        "Deployment.apps/v1": [],
-        "Service.v1": [],
-        "DestinationRule.networking.istio.io/v1alpha3": [],
-        "AuthorizationPolicy.security.istio.io/v1beta1": [],
-    }
-}
-
-DATA_CORRECT_CHILDREN = {
-    "parent": {
-        "metadata": {
-            "labels": {
-                "pipelines.kubeflow.org/enabled": "true"
-            },
-            "name": "myName"
-        }
-    },
-    "children": {
-        "Secret.v1": [1],
-        "ConfigMap.v1": [1],
-        "Deployment.apps/v1": [1, 1],
-        "Service.v1": [1, 1],
-        "DestinationRule.networking.istio.io/v1alpha3": [1],
-        "AuthorizationPolicy.security.istio.io/v1beta1": [1],
-    }
-}
-
-DATA_MISSING_PIPELINE_ENABLED = {"parent": {}, "children": {}}
-
-# Default values when environments are not explicit
-DEFAULT_FRONTEND_IMAGE = "ghcr.io/kubeflow/kfp-frontend"
-DEFAULT_VISUALIZATION_IMAGE = "ghcr.io/kubeflow/kfp-visualization-server"
-
-# Variables used for environment variable sets
-VISUALIZATION_SERVER_IMAGE = "vis-image"
-VISUALIZATION_SERVER_TAG = "somenumber.1.2.3"
-FRONTEND_IMAGE = "frontend-image"
-FRONTEND_TAG = "somehash"
+# The DecoratorController posts {"object": <namespace>, "attachments": {...}} and
+# the hook reports readiness by counting the attachments it observes against what
+# it attaches. This controller attaches, per pipeline-enabled namespace:
+#   ConfigMap x3        kfp-launcher, metadata-grpc-configmap, artifact-repositories
+#   AuthorizationPolicy x2  allow-oauth2-proxy-to-all-{predictors,knative-services}
+#   Deployment/Service x1   ml-pipeline-ui-artifact, ONLY when ARTIFACTS_PROXY_ENABLED
+#   Secret x0           none (S3 auth is IRSA, no static-key secret)
+# There is no DestinationRule and no visualization-server (dropped upstream).
 
 KFP_VERSION = "x.y.z"
+FRONTEND_IMAGE = "frontend-image"
+FRONTEND_TAG = "somehash"
+PIPELINE_ROOT = "s3://sandbox-kubeflow/v2/artifacts"
 
-MINIO_ACCESS_KEY = "abcdef"
-MINIO_SECRET_KEY = "uvwxyz"
-
-# "Environments" used in tests
-ENV_VARIABLES_BASE = {
-    "MINIO_ACCESS_KEY": MINIO_ACCESS_KEY,
-    "MINIO_SECRET_KEY": MINIO_SECRET_KEY,
-    "CONTROLLER_PORT": "0",  # HTTPServer randomly assigns the port to a free port
+ENV_BASE = {
+    "CONTROLLER_PORT": "0",  # HTTPServer picks a free port
+    "KFP_VERSION": KFP_VERSION,
+    "FRONTEND_IMAGE": FRONTEND_IMAGE,
+    "FRONTEND_TAG": FRONTEND_TAG,
+    "DISABLE_ISTIO_SIDECAR": "false",
+    "KFP_DEFAULT_PIPELINE_ROOT": PIPELINE_ROOT,
 }
-
-ENV_KFP_VERSION_ONLY = dict(ENV_VARIABLES_BASE,
-                            **{
-                                "KFP_VERSION": KFP_VERSION,
-                            }
-                            )
-
-ENV_IMAGES_NO_TAGS = dict(ENV_VARIABLES_BASE,
-                          **{
-                              "KFP_VERSION": KFP_VERSION,
-                              "VISUALIZATION_SERVER_IMAGE": VISUALIZATION_SERVER_IMAGE,
-                              "FRONTEND_IMAGE": FRONTEND_IMAGE,
-                          }
-                          )
-
-ENV_IMAGES_WITH_TAGS = dict(ENV_VARIABLES_BASE,
-                            **{
-                                "VISUALIZATION_SERVER_IMAGE": VISUALIZATION_SERVER_IMAGE,
-                                "FRONTEND_IMAGE": FRONTEND_IMAGE,
-                                "VISUALIZATION_SERVER_TAG": VISUALIZATION_SERVER_TAG,
-                                "FRONTEND_TAG": FRONTEND_TAG,
-                            }
-                            )
-
-ENV_IMAGES_WITH_TAGS_AND_ISTIO = dict(ENV_IMAGES_WITH_TAGS,
-                                      **{
-                                          "DISABLE_ISTIO_SIDECAR": "false",
-                                      }
-                                      )
+ENV_PROXY_OFF = dict(ENV_BASE, ARTIFACTS_PROXY_ENABLED="false")
+ENV_PROXY_ON = dict(ENV_BASE, ARTIFACTS_PROXY_ENABLED="true")
 
 
-def generate_image_name(imagename, tag):
-    return f"{str(imagename)}:{str(tag)}"
+def _parent():
+    return {
+        "metadata": {
+            "labels": {"pipelines.kubeflow.org/enabled": "true"},
+            "name": "myName",
+        }
+    }
 
 
-@pytest.fixture(
-    scope="function",
-)
+def _attachments(secret=0, configmap=0, deployment=0, service=0, authpolicy=0):
+    def items(n):
+        return {str(i): {} for i in range(n)}
+    return {
+        "Secret.v1": items(secret),
+        "ConfigMap.v1": items(configmap),
+        "Deployment.apps/v1": items(deployment),
+        "Service.v1": items(service),
+        "AuthorizationPolicy.security.istio.io/v1beta1": items(authpolicy),
+    }
+
+
+# Attachment sets that exactly match what the hook emits → ready=True
+CORRECT_PROXY_OFF = _attachments(secret=0, configmap=3, deployment=0, service=0, authpolicy=2)
+CORRECT_PROXY_ON = _attachments(secret=0, configmap=3, deployment=1, service=1, authpolicy=2)
+# Wrong counts → ready=False
+INCORRECT = _attachments(secret=1, configmap=1, deployment=0, service=0, authpolicy=1)
+
+DATA_MISSING_PIPELINE_ENABLED = {"object": {}, "attachments": {}}
+
+
+@pytest.fixture(scope="function")
 def sync_server(request):
-    """
-    Starts the sync HTTP server for a given set of environment variables on a separate thread
-
-    Yields:
-    * the server (useful to interrogate for the server address)
-    * environment variables (useful to interrogate for correct responses)
-    """
+    """Start the sync HTTP server for a given environment on a daemon thread."""
     environ = request.param
     with mock.patch.dict(os.environ, environ):
-        # Create a server at an available port and serve it on a thread as a daemon
-        # This will result in a collection of servers being active - not a great way
-        # if this fixture is run many times during a test, but ok for now
         settings = get_settings_from_env()
         server = server_factory(**settings)
         server_thread = threading.Thread(target=server.serve_forever)
-        # Put on daemon so it doesn't keep pytest from ending
         server_thread.daemon = True
         server_thread.start()
         yield server, environ
+        server.shutdown()
 
 
-@pytest.fixture(
-    scope="function",
-)
-def sync_server_from_arguments(request):
-    """
-    Starts the sync HTTP server for a given set of parameters passed as arguments, with server on a separate thread
-
-    Yields:
-    * the server (useful to interrogate for the server address)
-    * environment variables (useful to interrogate for correct responses)
-    """
-    environ = {k.lower(): v for k, v in request.param.items()}
-    settings = environ
-    server = server_factory(**settings)
-    server_thread = threading.Thread(target=server.serve_forever)
-    # Put on daemon so it doesn't keep pytest from ending
-    server_thread.daemon = True
-    server_thread.start()
-    yield server, environ
+def _post(server, observed):
+    url = f"http://{server.server_address[0]}:{server.server_address[1]}"
+    resp = requests.post(url, data=json.dumps(observed))
+    return json.loads(resp.text)
 
 
 @pytest.mark.parametrize(
-    "sync_server, data, expected_status, expected_visualization_server_image, expected_frontend_server_image",
+    "sync_server, attachments, expected_ready",
     [
-        (
-                ENV_KFP_VERSION_ONLY,
-                DATA_INCORRECT_CHILDREN,
-                {"kubeflow-pipelines-ready": "False"},
-                generate_image_name(DEFAULT_VISUALIZATION_IMAGE, KFP_VERSION),
-                generate_image_name(DEFAULT_FRONTEND_IMAGE, KFP_VERSION),
-        ),
-        (
-                ENV_IMAGES_NO_TAGS,
-                DATA_INCORRECT_CHILDREN,
-                {"kubeflow-pipelines-ready": "False"},
-                generate_image_name(ENV_IMAGES_NO_TAGS["VISUALIZATION_SERVER_IMAGE"], KFP_VERSION),
-                generate_image_name(ENV_IMAGES_NO_TAGS["FRONTEND_IMAGE"], KFP_VERSION),
-        ),
-        (
-                ENV_IMAGES_WITH_TAGS,
-                DATA_INCORRECT_CHILDREN,
-                {"kubeflow-pipelines-ready": "False"},
-                generate_image_name(ENV_IMAGES_WITH_TAGS["VISUALIZATION_SERVER_IMAGE"],
-                                    ENV_IMAGES_WITH_TAGS["VISUALIZATION_SERVER_TAG"]),
-                generate_image_name(ENV_IMAGES_WITH_TAGS["FRONTEND_IMAGE"], ENV_IMAGES_WITH_TAGS["FRONTEND_TAG"]),
-        ),
-        (
-                ENV_IMAGES_WITH_TAGS,
-                DATA_CORRECT_CHILDREN,
-                {"kubeflow-pipelines-ready": "True"},
-                generate_image_name(ENV_IMAGES_WITH_TAGS["VISUALIZATION_SERVER_IMAGE"],
-                                    ENV_IMAGES_WITH_TAGS["VISUALIZATION_SERVER_TAG"]),
-                generate_image_name(ENV_IMAGES_WITH_TAGS["FRONTEND_IMAGE"], ENV_IMAGES_WITH_TAGS["FRONTEND_TAG"]),
-        ),
+        (ENV_PROXY_OFF, CORRECT_PROXY_OFF, "True"),
+        (ENV_PROXY_OFF, INCORRECT, "False"),
+        (ENV_PROXY_ON, CORRECT_PROXY_ON, "True"),
+        # proxy ON but no Deployment/Service observed yet → not ready
+        (ENV_PROXY_ON, CORRECT_PROXY_OFF, "False"),
     ],
-    indirect=["sync_server"]
+    indirect=["sync_server"],
 )
-def test_sync_server_with_pipeline_enabled(sync_server, data, expected_status,
-                                           expected_visualization_server_image, expected_frontend_server_image):
-    """
-    Nearly end-to-end test of how Controller serves .sync as a POST
-
-    Tests case where metadata.labels.pipelines.kubeflow.org/enabled exists, and thus
-    we should produce children
-
-    Only does spot checks on children to see if key properties are correct
-    """
-    server, environ = sync_server
-
-    # server.server_address = (url, port_as_integer)
-    url = f"http://{server.server_address[0]}:{str(server.server_address[1])}"
-    print("url: ", url)
-    print("data")
-    print(json.dumps(data))
-    x = requests.post(url, data=json.dumps(data))
-    results = json.loads(x.text)
-
-    # Test overall status of whether children are ok
-    assert results['status'] == expected_status
-
-    # Poke a few children to test things that can vary by environment variable
-    assert results['children'][1]["spec"]["template"]["spec"]["containers"][0][
-               "image"] == expected_visualization_server_image
-    assert results['children'][5]["spec"]["template"]["spec"]["containers"][0][
-               "image"] == expected_frontend_server_image
+def test_readiness_counts(sync_server, attachments, expected_ready):
+    server, _ = sync_server
+    results = _post(server, {"object": _parent(), "attachments": attachments})
+    assert results["status"]["kubeflow-pipelines-ready"] == expected_ready
 
 
-@pytest.mark.parametrize(
-    "sync_server_from_arguments, data, expected_status, expected_visualization_server_image, "
-    "expected_frontend_server_image",
-    [
-        (
-                ENV_IMAGES_WITH_TAGS_AND_ISTIO,
-                DATA_CORRECT_CHILDREN,
-                {"kubeflow-pipelines-ready": "True"},
-                generate_image_name(ENV_IMAGES_WITH_TAGS["VISUALIZATION_SERVER_IMAGE"],
-                                    ENV_IMAGES_WITH_TAGS["VISUALIZATION_SERVER_TAG"]),
-                generate_image_name(ENV_IMAGES_WITH_TAGS["FRONTEND_IMAGE"], ENV_IMAGES_WITH_TAGS["FRONTEND_TAG"]),
-        ),
-    ],
-    indirect=["sync_server_from_arguments"]
-)
-def test_sync_server_with_direct_passing_of_settings(
-        sync_server_from_arguments, data, expected_status, expected_visualization_server_image,
-        expected_frontend_server_image):
-    """
-    Nearly end-to-end test of how Controller serves .sync as a POST, taking variables as arguments
+@pytest.mark.parametrize("sync_server", [ENV_PROXY_OFF], indirect=["sync_server"])
+def test_attaches_irsa_resources_and_no_static_keys(sync_server):
+    server, _ = sync_server
+    results = _post(server, {"object": _parent(), "attachments": _attachments()})
+    attached = results["attachments"]
 
-    Only does spot checks on children to see if key properties are correct
-    """
-    server, environ = sync_server_from_arguments
+    by_name = {r["metadata"]["name"]: r for r in attached}
 
-    # server.server_address = (url, port_as_integer)
-    url = f"http://{server.server_address[0]}:{str(server.server_address[1])}"
-    print("url: ", url)
-    print("data")
-    print(json.dumps(data))
-    x = requests.post(url, data=json.dumps(data))
-    results = json.loads(x.text)
+    # No per-namespace static-credential secret, no visualization server.
+    assert "mlpipeline-minio-artifact" not in by_name
+    assert not any(r["kind"] == "Secret" for r in attached)
+    assert not any("visualizationserver" in n for n in by_name)
 
-    # Test overall status of whether children are ok
-    assert results['status'] == expected_status
+    # kfp-launcher uses IRSA (credentials.fromEnv: true).
+    providers = json.loads(by_name["kfp-launcher"]["data"]["providers"])
+    assert providers["s3"]["default"]["credentials"]["fromEnv"] is True
+    assert by_name["kfp-launcher"]["data"]["defaultPipelineRoot"] == f"{PIPELINE_ROOT}/myName"
 
-    # Poke a few children to test things that can vary by environment variable
-    assert results['children'][1]["spec"]["template"]["spec"]["containers"][0][
-               "image"] == expected_visualization_server_image
-    assert results['children'][5]["spec"]["template"]["spec"]["containers"][0][
-               "image"] == expected_frontend_server_image
+    # Argo artifact repository uses the SDK credential chain, never static keys.
+    repo = json.loads(by_name["artifact-repositories"]["data"]["default-namespaced"])
+    assert repo["s3"]["useSDKCreds"] is True
+    assert "accessKeySecret" not in repo["s3"]
+    assert "secretKeySecret" not in repo["s3"]
+
+    # Both oauth2-proxy ALLOW policies are present with the right selectors.
+    assert by_name["allow-oauth2-proxy-to-all-predictors"]["spec"]["selector"]["matchLabels"]["component"] == "predictor"
+    assert by_name["allow-oauth2-proxy-to-all-knative-services"]["spec"]["selector"]["matchLabels"]["component"] == "knative-service"
 
 
-@pytest.mark.parametrize(
-    "sync_server, data, expected_status, expected_children",
-    [
-        (ENV_IMAGES_WITH_TAGS, DATA_MISSING_PIPELINE_ENABLED, {}, []),
-    ],
-    indirect=["sync_server"]
-)
-def test_sync_server_without_pipeline_enabled(sync_server, data, expected_status,
-                                              expected_children):
-    """
-    Nearly end-to-end test of how Controller serves .sync as a POST
+@pytest.mark.parametrize("sync_server", [ENV_PROXY_ON], indirect=["sync_server"])
+def test_proxy_enabled_attaches_fetcher_without_secret_refs(sync_server):
+    server, _ = sync_server
+    results = _post(server, {"object": _parent(), "attachments": _attachments()})
+    # Deployment and Service share the name ml-pipeline-ui-artifact, so key by kind.
+    by_kind_name = {(r["kind"], r["metadata"]["name"]): r for r in results["attachments"]}
 
-    Tests case where metadata.labels.pipelines.kubeflow.org/enabled does not
-    exist and thus server returns an empty reply
-    """
-    server, environ = sync_server
-
-    # server.server_address = (url, port_as_integer)
-    url = f"http://{server.server_address[0]}:{str(server.server_address[1])}"
-    x = requests.post(url, data=json.dumps(data))
-    results = json.loads(x.text)
-
-    # Test overall status of whether children are ok
-    assert results['status'] == expected_status
-    assert results['children'] == expected_children
+    fetcher = by_kind_name[("Deployment", "ml-pipeline-ui-artifact")]
+    assert ("Service", "ml-pipeline-ui-artifact") in by_kind_name
+    container = fetcher["spec"]["template"]["spec"]["containers"][0]
+    env = {e["name"]: e for e in container["env"]}
+    # MINIO keys are present but empty (IRSA), never sourced from a secret.
+    assert env["MINIO_ACCESS_KEY"]["value"] == ""
+    assert env["MINIO_SECRET_KEY"]["value"] == ""
+    assert "valueFrom" not in env["MINIO_ACCESS_KEY"]
+    assert "valueFrom" not in env["MINIO_SECRET_KEY"]
+    assert container["image"] == f"{FRONTEND_IMAGE}:{FRONTEND_TAG}"
 
 
-def test_create_iam_client_uses_endpoint(monkeypatch):
-    called = {}
-
-    class DummySession:
-        def create_client(self, service_name, region_name=None, endpoint_url=None):
-            called["service_name"] = service_name
-            called["endpoint_url"] = endpoint_url
-            return object()
-
-    monkeypatch.setenv("AWS_ENDPOINT_URL", "http://seaweedfs.kubeflow:8111")
-    monkeypatch.setattr(sync, "session", DummySession())
-
-    sync.create_iam_client()
-
-    assert called["service_name"] == "iam"
-    assert called["endpoint_url"] == "http://seaweedfs.kubeflow:8111"
+@pytest.mark.parametrize("sync_server", [ENV_PROXY_OFF], indirect=["sync_server"])
+def test_pipeline_not_enabled_returns_empty(sync_server):
+    server, _ = sync_server
+    results = _post(server, DATA_MISSING_PIPELINE_ENABLED)
+    assert results["status"] == {}
+    assert results["attachments"] == []
