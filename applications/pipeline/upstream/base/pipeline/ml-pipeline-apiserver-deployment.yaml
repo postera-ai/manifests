@@ -5,6 +5,7 @@ metadata:
     app: ml-pipeline
   name: ml-pipeline
 spec:
+  replicas: 2
   selector:
     matchLabels:
       app: ml-pipeline
@@ -15,6 +16,13 @@ spec:
       annotations:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
     spec:
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: ml-pipeline
       securityContext:
         runAsNonRoot: true
         seccompProfile:
