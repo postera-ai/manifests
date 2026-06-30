@@ -1,0 +1,37 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: kubeflow
+resources:
+- ../../env/cert-manager/platform-agnostic-multi-user
+configMapGenerator:
+- behavior: merge
+  envs:
+  - params.env
+  name: pipeline-install-config
+- behavior: replace
+  files:
+  - config
+  name: workflow-controller-configmap
+- behavior: replace
+  files:
+  - viewer-pod-template.json
+  name: ml-pipeline-ui-configmap
+# No secretGenerator: the mysql-secret is created out-of-band by the provisioning
+# layer (with lifecycle ignore_changes so the managed password persists).
+# delete-mysql-secret.yaml below removes the base's placeholder so the
+# externally-managed one is authoritative.
+generatorOptions:
+  disableNameSuffixHash: true
+patches:
+- path: aws-configuration-pipeline-patch.yaml
+- path: aws-configuration-pipeline-ui-patch.yaml
+- path: aws-configuration-argo-patch.yaml
+- path: aws-configuration-kfp-launcher-patch.yaml
+- path: delete-mysql-secret.yaml
+# Identifier for application manager to apply ownerReference.
+# The ownerReference ensures the resources get garbage collected
+# when application is deleted.
+labels:
+- includeSelectors: true
+  pairs:
+    application-crd-id: kubeflow-pipelines

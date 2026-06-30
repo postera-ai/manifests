@@ -17,6 +17,8 @@ spec:
             - workflow-controller-configmap
             - --executor-image
             - quay.io/argoproj/argoexec:v3.7.3
+            - --log-format
+            - json
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true

@@ -7,9 +7,12 @@ resources:
 - ../../base/metadata/base
 - ../../base/metadata/options/istio
 - ../../third-party/argo/installs/cluster
-- ../../third-party/mysql/base
-- ../../third-party/mysql/options/istio
-- ../../third-party/seaweedfs/istio
+# This overlay targets external RDS MySQL + S3 (via IRSA), not the in-cluster
+# storage backends. The env/aws overlay points KFP at RDS/S3; these in-cluster
+# backends are omitted.
+# - ../../third-party/mysql/base
+# - ../../third-party/mysql/options/istio
+# - ../../third-party/seaweedfs/istio
 
 
 # !!! If you want to customize the namespace,

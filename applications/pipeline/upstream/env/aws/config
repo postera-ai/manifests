@@ -1,0 +1,33 @@
+{
+artifactRepository:
+{
+    s3: {
+        bucket: $(kfp-artifact-bucket-name),
+        region: us-west-2,
+        endpoint: s3.us-west-2.amazonaws.com,
+        insecure: false,
+        useSDKCreds: true,
+        keyFormat: "artifacts/{{ workflow.namespace }}/{{ workflow.creationTimestamp.Y }}/{{ workflow.creationTimestamp.m }}/{{ workflow.creationTimestamp.d }}/{{ pod.name }}"
+    },
+    archiveLogs: true
+},
+persistence:
+{
+    nodeStatusOffLoad: true,
+    archive: true,
+    mysql: {
+        host: <changeme_rds_instance_endpoint>,
+        port: 3306,
+        database: argo_archive,
+        tableName: argo_workflows,
+        userNameSecret: {
+            name: mysql-secret,
+            key: username
+        },
+        passwordSecret: {
+            name: mysql-secret,
+            key: password
+        }
+    }
+}
+}
