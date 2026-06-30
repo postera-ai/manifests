@@ -11,6 +11,10 @@ resources:
 - serviceaccount.yaml
 - service.yaml
 - virtualservice.yaml
+- pod-disruption-budget.yaml
+
+patches:
+- path: patches/topology-spread.yaml
 
 secretGenerator:
 - name: oauth2-proxy

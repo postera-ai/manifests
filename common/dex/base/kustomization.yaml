@@ -12,6 +12,10 @@ resources:
 - deployment.yaml
 - service.yaml
 - dex-passwords.yaml
+- pod-disruption-budget.yaml
+
+patches:
+- path: patches/topology-spread.yaml
 
 generatorOptions:
   disableNameSuffixHash: true

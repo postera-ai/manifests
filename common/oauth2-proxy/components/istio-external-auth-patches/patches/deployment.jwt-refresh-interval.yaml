@@ -16,3 +16,5 @@ spec:
         # Istio mechanism to use a placeholder jwt until refreshed.
         - name: PILOT_JWT_PUB_KEY_REFRESH_INTERVAL
           value: "1m"
+        - name: PILOT_JWT_ENABLE_REMOTE_JWKS
+          value: hybrid
