@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
 - ../../base
 - kubeflow-tls-certificate.yaml
+- istio-ingressgateway-idle-timeout.yaml
 
 components:
 - ../../../../oauth2-proxy/components/istio-external-auth-patches
