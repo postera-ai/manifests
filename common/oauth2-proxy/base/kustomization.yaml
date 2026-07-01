@@ -16,13 +16,17 @@ resources:
 patches:
 - path: patches/topology-spread.yaml
 
-secretGenerator:
-- name: oauth2-proxy
-  type: Opaque
-  literals:
-  - client-id=kubeflow-oidc-authservice
-  - client-secret=pUBnBOY80SnXgjibTYM9ZWNzY2xreNGQok
-  - cookie-secret=7d16fee92f8d11b8940b081b3f8b8acb
+# The oauth2-proxy Secret is provided out-of-band by the provisioning layer; do
+# not generate a colliding copy that would overwrite the managed credentials.
+# The Deployment references it by static name via secretKeyRef, so dropping the
+# generator does not break any name reference.
+#secretGenerator:
+#- name: oauth2-proxy
+#  type: Opaque
+#  literals:
+#  - client-id=kubeflow-oidc-authservice
+#  - client-secret=pUBnBOY80SnXgjibTYM9ZWNzY2xreNGQok
+#  - cookie-secret=7d16fee92f8d11b8940b081b3f8b8acb
 
 configMapGenerator:
 - name: oauth2-proxy

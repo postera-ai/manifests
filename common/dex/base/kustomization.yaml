@@ -20,8 +20,10 @@ patches:
 generatorOptions:
   disableNameSuffixHash: true
 
-secretGenerator:
-- name: dex-oidc-client
-  type: Opaque
-  envs:
-  - secret_params.env
+# The dex-oidc-client Secret is provided out-of-band by the provisioning layer;
+# do not generate a colliding copy that would overwrite the managed credentials.
+#secretGenerator:
+#- name: dex-oidc-client
+#  type: Opaque
+#  envs:
+#  - secret_params.env
