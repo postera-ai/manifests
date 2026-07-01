@@ -18,6 +18,7 @@ spec:
                   name: pipeline-install-config
                   key: bucketName
             - name: OBJECTSTORECONFIG_HOST
+              value: null
               valueFrom:
                 configMapKeyRef:
                   name: pipeline-install-config
