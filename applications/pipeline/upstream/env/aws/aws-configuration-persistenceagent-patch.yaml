@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-pipeline-persistenceagent
+  namespace: kubeflow
+spec:
+  template:
+    spec:
+      containers:
+        - name: ml-pipeline-persistenceagent
+          # Override the image's default CMD only to add --saTokenRefreshIntervalInSecs.
+          # The projected SA token has expirationSeconds: 3600 (base deployment volume),
+          # and the upstream refresher default is also 3600 (backend/src/agent/persistence
+          # /main.go DefaultSATokenRefresherIntervalInSecs). Because the agent caches the
+          # token in memory and only re-reads on that interval, at the hourly boundary it
+          # can present a just-expired token -> bursts of "service account token has expired"
+          # TokenReview rejections on ReportWorkflow. Refreshing at half the TTL keeps a
+          # 1800s validity margin. Everything else here mirrors the upstream default CMD.
+          command:
+            - /bin/sh
+            - -c
+            - persistence_agent --logtostderr=true --namespace=${NAMESPACE} --ttlSecondsAfterWorkflowFinish=${TTL_SECONDS_AFTER_WORKFLOW_FINISH} --numWorker ${NUM_WORKERS} --executionType ${EXECUTIONTYPE} --logLevel=${LOG_LEVEL} --saTokenRefreshIntervalInSecs=1800
