@@ -29,5 +29,15 @@ persistence:
             key: password
         }
     }
+},
+workflowDefaults:
+{
+    spec: {
+        podMetadata: {
+            annotations: {
+                "ad.datadoghq.com/main.logs": '[{"log_processing_rules": [{"type": "multi_line", "name": "kfp_glog_and_postera_json", "pattern": "^(\\{\"timestamp\"|[IWEF]\\d{4} \\d{2}:\\d{2}:\\d{2})"}]}]'
+            }
+        }
+    }
 }
 }
