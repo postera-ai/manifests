@@ -37,23 +37,22 @@ must pass it through untouched. Escaping to `$${...}` makes Terraform emit a
 literal `${...}`. So the blanket escape is correct for everything the script
 produces.
 
-## Manual post-generation steps
+## Manual post-generation step
 
-Regeneration overwrites `manifests/kubeflow/*`, so these edits must be re-applied
-by hand each time:
+Regeneration overwrites `manifests/kubeflow/*`, so this must be re-applied each
+time. Upstream ships per-deployment values as `<changeme-...>` placeholders
+(IAM role ARNs, bucket/endpoint names, the workflow TTL, default user/domain,
+etc.). Each must be replaced with the corresponding Terraform variable using a
+**single `$`** so TF interpolates it per-cluster — e.g.:
 
-1. **Inject the real Terraform var for the workflow TTL.** The persistence-agent
-   Deployment's `TTL_SECONDS_AFTER_WORKFLOW_FINISH` env value ships from upstream
-   base as the literal `"<changeme-ttl-seconds-after-workflow-finish>"`. Replace
-   it with the Terraform variable, **single `$`** so TF interpolates it:
+```yaml
+- name: TTL_SECONDS_AFTER_WORKFLOW_FINISH
+  value: '${kfp_workflow_ttl_seconds}'   # was "<changeme-ttl-seconds-after-workflow-finish>"
+```
 
-   ```yaml
-   - name: TTL_SECONDS_AFTER_WORKFLOW_FINISH
-     value: '${kfp_workflow_ttl_seconds}'
-   ```
-
-   This is the only genuine TF variable inside the generated set; leave every
-   other `$${...}` escaped.
+Grep the output for `changeme` after generating: **zero hits** means every
+placeholder has been wired to its TF var. Leave every `$${...}` (the escaped KFP
+runtime shell placeholders) untouched.
 
 ## Not part of this pipeline
 
