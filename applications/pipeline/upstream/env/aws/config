@@ -44,5 +44,19 @@ executor:
             type: RuntimeDefault
         }
     }
+},
+workflowDefaults:
+{
+    spec: {
+        podGC: {
+            strategy: OnPodCompletion,
+            deleteDelayDuration: 60s,
+            labelSelector: {
+                matchExpressions: [
+                    { key: access-ml-pipeline, operator: DoesNotExist }
+                ]
+            }
+        }
+    }
 }
 }
