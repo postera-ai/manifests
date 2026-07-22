@@ -48,23 +48,6 @@ executor:
 workflowDefaults:
 {
     spec: {
-        tolerations: [
-            { key: postera.ai/worker-pod, operator: Equal, value: "true", effect: NoSchedule }
-        ],
-        affinity: {
-            nodeAffinity: {
-                preferredDuringSchedulingIgnoredDuringExecution: [
-                    {
-                        weight: 100,
-                        preference: {
-                            matchExpressions: [
-                                { key: postera.ai/worker-pod, operator: In, values: [ "true" ] }
-                            ]
-                        }
-                    }
-                ]
-            }
-        },
         podGC: {
             strategy: OnPodCompletion,
             deleteDelayDuration: 60s,
