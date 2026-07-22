@@ -1,0 +1,9 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-pipeline-persistenceagent
+spec:
+  template:
+    spec:
+      # Already Burstable (120m/500Mi); just raise its scheduling/eviction priority.
+      priorityClassName: kubeflow-control-plane

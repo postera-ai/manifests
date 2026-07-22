@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cache-server
+spec:
+  template:
+    spec:
+      priorityClassName: kubeflow-control-plane
+      containers:
+      - name: server
+        # cache-server was also BestEffort; give it guaranteed CFS shares.
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi

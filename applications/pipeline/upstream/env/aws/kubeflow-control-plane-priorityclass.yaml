@@ -1,0 +1,11 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: kubeflow-control-plane
+# Same value as the existing workflow-controller PriorityClass: well above the
+# priority 0 of workflow (driver/executor) pods, below system-cluster-critical.
+# Ensures the singleton KFP control-plane pods are scheduled ahead of, and
+# evicted after, the driver-pod bursts that share the managed base nodes.
+value: 1000000
+globalDefault: false
+description: "KFP control-plane singletons (MLMD, api-server, cache, metadata-writer, scheduledworkflow, persistenceagent)."

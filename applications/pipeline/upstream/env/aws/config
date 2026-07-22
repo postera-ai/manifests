@@ -44,5 +44,56 @@ executor:
             type: RuntimeDefault
         }
     }
+},
+# workflowDefaults is merged by the argo controller into every Workflow it runs.
+# We use it to reach the pods KFP injects itself (system-*-driver) that the SDK
+# (postera_common configure_task) cannot: task/executor pods get a worker-pod
+# nodeSelector + access-ml-pipeline label from configure_task, but drivers get
+# neither and fall onto the untainted managed base nodes that also host the KFP
+# control plane. Under a large ParallelFor fan-out (e.g. gnina docking) that
+# driver burst has starved the co-located control plane.
+workflowDefaults:
+{
+    spec: {
+        # Soft-steer every workflow pod toward the Karpenter worker nodes.
+        # Tolerations are additive (executors already tolerate worker-pod, so this
+        # is a no-op for them). The nodeAffinity is *preferred*, not required:
+        # under load, worker nodes already exist for the executors and drivers ride
+        # them, off the control-plane nodes; under light load (no worker nodes up,
+        # no contention) drivers fall back to base nodes. No always-on cost.
+        tolerations: [
+            { key: postera.ai/worker-pod, operator: Equal, value: "true", effect: NoSchedule }
+        ],
+        affinity: {
+            nodeAffinity: {
+                preferredDuringSchedulingIgnoredDuringExecution: [
+                    {
+                        weight: 100,
+                        preference: {
+                            matchExpressions: [
+                                { key: postera.ai/worker-pod, operator: In, values: [ "true" ] }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        # GC completed pods that are NOT pipeline-task pods. configure_task stamps
+        # access-ml-pipeline=true on every executor; KFP-injected driver/system
+        # pods lack it, so DoesNotExist selects exactly the drivers. This clears
+        # them mid-workflow (not just on workflow finish, which persistenceagent's
+        # TTL already handles) so they stop piling onto base nodes and lingering.
+        # Logs survive: archiveLogs -> S3 and nodeStatusOffLoad -> RDS; the short
+        # delete delay leaves a window for the Datadog agent to tail final logs.
+        podGC: {
+            strategy: OnPodCompletion,
+            deleteDelayDuration: 60s,
+            labelSelector: {
+                matchExpressions: [
+                    { key: access-ml-pipeline, operator: DoesNotExist }
+                ]
+            }
+        }
+    }
 }
 }
