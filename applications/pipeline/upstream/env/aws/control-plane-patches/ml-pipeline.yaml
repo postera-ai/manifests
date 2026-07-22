@@ -5,5 +5,4 @@ metadata:
 spec:
   template:
     spec:
-      # Already Burstable (250m/500Mi); just raise its scheduling/eviction priority.
       priorityClassName: kubeflow-control-plane

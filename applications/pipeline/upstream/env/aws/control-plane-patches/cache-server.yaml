@@ -8,7 +8,6 @@ spec:
       priorityClassName: kubeflow-control-plane
       containers:
       - name: server
-        # cache-server was also BestEffort; give it guaranteed CFS shares.
         resources:
           requests:
             cpu: 100m

@@ -8,9 +8,6 @@ spec:
       priorityClassName: kubeflow-control-plane
       containers:
       - name: container
-        # MLMD was BestEffort (no requests): first to be CPU-starved / evicted when
-        # a driver burst spikes a shared base node, which is what crash-looped it.
-        # Requests-only (no limits) makes it Burstable and guarantees CFS shares.
         resources:
           requests:
             cpu: 200m
