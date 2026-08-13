@@ -27,3 +27,5 @@ patches:
 - path: patches/remove-gateway.yaml
 - path: patches/pdb.yaml
 - path: patches/ha.yaml
+- path: patches/config-defaults-max-revision-timeout.yaml
+- path: patches/activator-grace-period.yaml
