@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-defaults
+  namespace: knative-serving
+data:
+  # postera-cheminformatics-service (Lab on Knative) needs to serve requests up
+  # to ~1250s (instadock/postdock); this is the cluster-wide cap on per-revision
+  # timeoutSeconds / responseStartTimeoutSeconds. Raising it requires the
+  # activator's terminationGracePeriodSeconds to be raised to match (see
+  # patches/activator-grace-period.yaml) so in-flight requests aren't dropped
+  # on activator rollout.
+  max-revision-timeout-seconds: "1800"

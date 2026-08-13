@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: activator
+  namespace: knative-serving
+spec:
+  template:
+    spec:
+      # Must stay >= config-defaults' max-revision-timeout-seconds
+      # (patches/config-defaults-max-revision-timeout.yaml) or the activator can
+      # drop in-flight requests on its own rollout before they complete.
+      terminationGracePeriodSeconds: 1800
