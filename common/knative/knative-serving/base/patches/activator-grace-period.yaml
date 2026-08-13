@@ -6,7 +6,5 @@ metadata:
 spec:
   template:
     spec:
-      # Must stay >= config-defaults' max-revision-timeout-seconds
-      # (patches/config-defaults-max-revision-timeout.yaml) or the activator can
-      # drop in-flight requests on its own rollout before they complete.
+      # Must stay >= config-defaults' max-revision-timeout-seconds.
       terminationGracePeriodSeconds: 1800
