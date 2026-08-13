@@ -6,4 +6,4 @@ metadata:
 data:
   # Cap on per-revision timeoutSeconds; Lab on Knative needs up to ~1250s.
   # Paired with patches/activator-grace-period.yaml.
-  max-revision-timeout-seconds: "1800"
+  max-revision-timeout-seconds: "1800"  # overrides the 600s shown in upstream's _example

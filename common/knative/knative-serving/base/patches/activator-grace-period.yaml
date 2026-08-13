@@ -6,5 +6,6 @@ metadata:
 spec:
   template:
     spec:
-      # Must stay >= config-defaults' max-revision-timeout-seconds.
-      terminationGracePeriodSeconds: 1800
+      # Must stay above config-defaults' max-revision-timeout-seconds, with
+      # margin for SIGTERM propagation/drain overhead.
+      terminationGracePeriodSeconds: 1860
