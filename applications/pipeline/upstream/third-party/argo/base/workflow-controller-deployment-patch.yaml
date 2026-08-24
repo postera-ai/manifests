@@ -28,7 +28,11 @@ spec:
                 - ALL
             seccompProfile:
               type: RuntimeDefault
+          # Unlimited, a status blob it cannot persist grew this to 8.8GB and cost the whole node.
+          # No cpu limit on purpose: throttling the reconcile loop only lengthens a backlog.
           resources:
+            limits:
+              memory: 4Gi
             requests:
               cpu: 100m
-              memory: 500Mi
+              memory: 1Gi
