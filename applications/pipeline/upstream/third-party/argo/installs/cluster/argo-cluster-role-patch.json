@@ -1,0 +1,20 @@
+[
+  {
+    "op": "replace",
+    "path": "/rules/1",
+    "value": {
+      "apiGroups": [""],
+      "resources": ["configmaps"],
+      "verbs": ["get", "watch", "list", "create"]
+    }
+  },
+  {
+    "op": "add",
+    "path": "/rules/2",
+    "value": {
+      "apiGroups": [""],
+      "resources": ["namespaces"],
+      "verbs": ["get", "watch", "list"]
+    }
+  }
+]
