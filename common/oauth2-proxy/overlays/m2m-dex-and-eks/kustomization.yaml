@@ -23,6 +23,9 @@ patches:
     - op: replace
       path: /spec/jwtRules/0/issuer
       value: https://oidc.eks.AWS_REGION.amazonaws.com/id/CLUSTER_ID
+    - op: add
+      path: /spec/jwtRules/0/jwksUri
+      value: https://oidc.eks.AWS_REGION.amazonaws.com/id/CLUSTER_ID/keys
   target:
     group: security.istio.io
     version: v1beta1

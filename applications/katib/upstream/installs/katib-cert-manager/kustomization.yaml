@@ -10,8 +10,9 @@ resources:
 - ../../components/crd/
 # Katib DB manager.
 - ../../components/db-manager/
-# Katib DB mysql.
-- ../../components/mysql/
+# Katib DB mysql — external RDS MySQL (via the katib-mysql-secrets Secret,
+# created out-of-band), not the in-cluster backend.
+# - ../../components/mysql/
 # Katib UI.
 - ../../components/ui/
  # Katib webhooks.
@@ -43,6 +44,9 @@ configMapGenerator:
     disableNameSuffixHash: true
 patches:
 - path: patches/katib-cert-injection.yaml
+# Point katib-db-manager at external RDS MySQL via the TF-owned
+# katib-mysql-secrets (replaces the in-cluster mysql component above).
+- path: patches/db-manager.yaml
 replacements:
 - source:
     fieldPath: metadata.namespace

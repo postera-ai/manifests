@@ -13,3 +13,6 @@ patches:
     kind: ConfigMap
     name: dex
     namespace: auth
+# The dex-passwords Secret is created out-of-band (lifecycle ignore_changes);
+# delete the base placeholder so the externally-managed one is authoritative.
+- path: delete-dex-passwords-secret.yaml

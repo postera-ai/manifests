@@ -149,7 +149,16 @@ scripts/synchronize-istio-manifests.sh
 
 ### Kustomize modifications
 
-- Remove PodDisruptionBudgets for compatibility
+- Connection-plane HA: istiod, istio-ingressgateway, and cluster-local-gateway
+  each get a fresh `minAvailable: 1` PodDisruptionBudget (the istioctl-generated
+  install ships none for the static Deployments — only templated PDBs inside the
+  Gateway-controller `InfrastructureTemplateData` for dynamic Gateway-API gws),
+  paired with HPA `minReplicas: 2` and a soft hostname `topologySpreadConstraints`
+  so node rolls drain one pod at a time without dropping the data path. HA lives
+  in kustomize patches (`patches/istiod-ha.yaml`,
+  `patches/istio-ingressgateway-ha.yaml`,
+  `cluster-local-gateway/base/patches/cluster-local-gateway-ha.yaml`) + the PDB
+  resource files, so it survives `istioctl`-driven regeneration of `install.yaml`.
 - Add AuthorizationPolicies for security
 - Add Gateway CRs and namespace objects
 - Configure TCP KeepAlives
