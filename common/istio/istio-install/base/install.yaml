@@ -3201,7 +3201,7 @@ data:
           }
         },
         "externalIstiod": false,
-        "hub": "registry.istio.io/release",
+        "hub": "docker.io/istio",
         "imagePullPolicy": "",
         "imagePullSecrets": [],
         "istioNamespace": "istio-system",
@@ -3384,7 +3384,7 @@ data:
           }
         },
         "externalIstiod": false,
-        "hub": "registry.istio.io/release",
+        "hub": "docker.io/istio",
         "imagePullPolicy": "",
         "imagePullSecrets": [],
         "istioNamespace": "istio-system",
@@ -3581,7 +3581,7 @@ data:
       },
       "global": {
         "configValidation": true,
-        "hub": "registry.istio.io/release",
+        "hub": "docker.io/istio",
         "istioNamespace": "istio-system",
         "tag": "1.30.1"
       },
@@ -3862,7 +3862,7 @@ spec:
         envFrom:
         - configMapRef:
             name: istio-cni-config
-        image: registry.istio.io/release/install-cni:1.30.1
+        image: docker.io/istio/install-cni:1.30.1
         name: install-cni
         ports:
         - containerPort: 15014
@@ -4060,7 +4060,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        image: registry.istio.io/release/proxyv2:1.30.1
+        image: docker.io/istio/proxyv2:1.30.1
         name: istio-proxy
         ports:
         - containerPort: 15021
@@ -4265,7 +4265,7 @@ spec:
               resource: limits.cpu
         - name: PLATFORM
           value: ''
-        image: registry.istio.io/release/pilot:1.30.1
+        image: docker.io/istio/pilot:1.30.1
         name: discovery
         ports:
         - containerPort: 8080
