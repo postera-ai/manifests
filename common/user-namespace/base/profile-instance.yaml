@@ -1,8 +1,12 @@
 apiVersion: kubeflow.org/v1beta1
 kind: Profile
 metadata:
-  name: kubeflow-user-example-com
+  name: $(profile-name)
 spec:
   owner:
     kind: User
-    name: user@example.com
+    name: $(user)
+  plugins:
+    - kind: AwsIamForServiceAccount
+      spec:
+        awsIamRole: <changeme-IAM-role-for-default-user-arn>

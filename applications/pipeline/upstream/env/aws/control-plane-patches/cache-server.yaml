@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cache-server
+spec:
+  template:
+    spec:
+      priorityClassName: kubeflow-control-plane
+      containers:
+      - name: server
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi

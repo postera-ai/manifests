@@ -13,3 +13,9 @@ patches:
     kind: ClusterRoleBinding
     name: argo-binding
     version: v1
+- path: argo-cluster-role-patch.json
+  target:
+    group: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: argo-cluster-role
+    version: v1

@@ -1,0 +1,13 @@
+# Fresh PodDisruptionBudget — upstream 26.03.1 ships none for the static
+# cluster-local-gateway Deployment. Pairs with the minReplicas:2 HPA patch.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cluster-local-gateway
+  namespace: istio-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: cluster-local-gateway
+      istio: cluster-local-gateway

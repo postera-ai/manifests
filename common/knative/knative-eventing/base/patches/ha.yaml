@@ -1,0 +1,9 @@
+# Connection-plane HA: floor eventing-webhook at 2 replicas. Pairs with the
+# minAvailable:1 PDB in patches/pdb.yaml.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: eventing-webhook
+  namespace: knative-eventing
+spec:
+  minReplicas: 2

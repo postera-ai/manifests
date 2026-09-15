@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-observability
+  namespace: knative-serving
+data:
+  # Knative 1.19 migrated metrics from OpenCensus to OpenTelemetry, deleting the
+  # old metrics.backend-destination / metrics.request-metrics-backend-destination
+  # keys. Their replacements default to "none", which turns Prometheus exposition
+  # OFF. Re-enable it so an external Prometheus-scraping agent keeps collecting
+  # the control-plane (activator/autoscaler) and queue-proxy/revision metrics.
+  metrics-protocol: prometheus
+  request-metrics-protocol: prometheus
+  # 1.22 reporting-interval keys (replacing metrics.reporting-period-seconds).
+  metrics-export-interval: 15s
+  request-metrics-export-interval: 15s

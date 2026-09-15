@@ -207,7 +207,7 @@ spec:
       volumeMounts:
       - mountPath: /dev/shm
         name: shm
-    pipelineParallelSize: 1
+    pipelineParallelSize: 2
     tensorParallelSize: 1
     volumes:
     - emptyDir:

@@ -1,0 +1,16 @@
+# Spread oauth2-proxy's 2 replicas across nodes so a single node roll keeps one
+# serving the ext_authz path.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+spec:
+  template:
+    spec:
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: oauth2-proxy

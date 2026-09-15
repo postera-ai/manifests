@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metadata-grpc-deployment
+spec:
+  template:
+    spec:
+      priorityClassName: kubeflow-control-plane
+      containers:
+      - name: container
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi

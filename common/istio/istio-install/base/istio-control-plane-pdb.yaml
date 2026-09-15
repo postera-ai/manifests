@@ -1,0 +1,29 @@
+# Upstream 26.03.1 ships no static PodDisruptionBudget for the istiod /
+# istio-ingressgateway static Deployments (the only PDBs in install.yaml are
+# Go-template strings inside the Gateway-controller InfrastructureTemplateData,
+# for dynamically-provisioned Gateway-API gateways). These fresh PDBs keep at
+# least one replica of each available during voluntary disruptions (node rolls,
+# drains), pairing with the minReplicas:2 HPA patches.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: istiod
+  namespace: istio-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: istiod
+      istio: pilot
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: istio-ingressgateway
+  namespace: istio-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: istio-ingressgateway
+      istio: ingressgateway

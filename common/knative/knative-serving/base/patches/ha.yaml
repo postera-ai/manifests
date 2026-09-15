@@ -1,0 +1,18 @@
+# Connection-plane HA: floor activator + webhook at 2 replicas so a single node
+# roll never drops them to zero. maxReplicas (20 / 5) is left as upstream set it.
+# Pairs with the minAvailable:1 PDBs in patches/pdb.yaml.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: activator
+  namespace: knative-serving
+spec:
+  minReplicas: 2
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: webhook
+  namespace: knative-serving
+spec:
+  minReplicas: 2

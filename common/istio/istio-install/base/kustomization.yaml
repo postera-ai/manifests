@@ -9,6 +9,7 @@ resources:
 - deny_all_authorizationpolicy.yaml
 - gateway.yaml
 - sidecar-prune-egress.yaml
+- istio-control-plane-pdb.yaml
 
 patches:
 - path: patches/service.yaml
@@ -17,6 +18,8 @@ patches:
 - path: patches/disable-debugging.yaml
 - path: patches/seccomp-istio-ingressgateway.yaml
 - path: patches/seccomp-istiod.yaml
+- path: patches/istiod-ha.yaml
+- path: patches/istio-ingressgateway-ha.yaml
 
 images:
 - name: busybox
