@@ -21,7 +21,7 @@ data:
         requests:
           cpu: 10m
       externalIstiod: false
-      hub: docker.io/istio
+      hub: <changeme-docker-hub-mirror>/istio
       imagePullPolicy: ""
       imagePullSecrets: []
       istioNamespace: istio-system
