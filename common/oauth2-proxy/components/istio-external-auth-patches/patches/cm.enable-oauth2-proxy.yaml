@@ -33,4 +33,5 @@ data:
         - cookie
         service: oauth2-proxy.oauth2-proxy.svc.cluster.local
         port: 80
+        timeout: 5s
       name: oauth2-proxy

@@ -1,0 +1,28 @@
+{
+  "spec": {
+    "serviceAccountName": "default-editor",
+    "containers": [
+      {
+        "env": [
+          {
+            "name": "AWS_REGION",
+            "valueFrom": {
+              "configMapKeyRef": {
+                "name": "pipeline-install-config",
+                "key": "minioServiceRegion"
+              }
+            }
+          },
+          {
+            "name": "AWS_ENDPOINT_URL",
+            "value": "https://s3.us-west-2.amazonaws.com"
+          },
+          {
+            "name": "AWS_BUCKET",
+            "value": "<changeme-bucket-name>"
+          }
+        ]
+      }
+    ]
+  }
+}

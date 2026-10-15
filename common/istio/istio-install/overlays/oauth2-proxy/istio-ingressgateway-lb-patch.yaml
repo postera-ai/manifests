@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-ingressgateway
+  namespace: istio-system
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-name: "<changeme-ingress-lb-name>"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internal"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-listener-attributes.TCP-443: tcp.idle_timeout.seconds=1800
+    service.beta.kubernetes.io/aws-load-balancer-listener-attributes.TCP-80: tcp.idle_timeout.seconds=1800
+
+spec:
+  type: LoadBalancer

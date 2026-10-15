@@ -26,7 +26,7 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
           - name: TTL_SECONDS_AFTER_WORKFLOW_FINISH
-            value: "86400"
+            value: "<changeme-ttl-seconds-after-workflow-finish>"
           - name: NUM_WORKERS
             value: "2"
           - name: LOG_LEVEL
