@@ -28,7 +28,7 @@ spec:
         # python3 image for the sync.py webhook. The sync.py here talks to S3
         # via IRSA, so it does not need botocore/awscli or the SeaweedFS
         # access-key env that upstream injected here.
-        image: docker.io/alpine/k8s:1.32.3
+        image: <changeme-docker-hub-mirror>/alpine/k8s:1.32.3
         command: ["python", "/hooks/sync.py"]
         envFrom:
         - configMapRef:
