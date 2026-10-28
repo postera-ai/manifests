@@ -1,0 +1,16 @@
+# Keep serving for 15s after SIGTERM so the gateways drop this pod from their
+# endpoints first. Without it, ext_authz calls in flight to a draining pod fail
+# and Envoy answers the client with a bare 403.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+spec:
+  template:
+    spec:
+      containers:
+      - name: oauth2-proxy
+        lifecycle:
+          preStop:
+            sleep:
+              seconds: 15

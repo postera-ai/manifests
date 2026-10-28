@@ -16,6 +16,7 @@ resources:
 
 patches:
 - path: patches/topology-spread.yaml
+- path: patches/prestop-drain.yaml
 
 generatorOptions:
   disableNameSuffixHash: true

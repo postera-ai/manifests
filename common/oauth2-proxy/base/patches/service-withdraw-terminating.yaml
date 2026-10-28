@@ -1,0 +1,9 @@
+# Upstream sets publishNotReadyAddresses, which keeps terminating pods marked
+# ready, so the gateways keep sending ext_authz checks to a draining pod for
+# its whole preStop sleep. Let endpoints drop out as soon as a pod terminates.
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+spec:
+  publishNotReadyAddresses: false
