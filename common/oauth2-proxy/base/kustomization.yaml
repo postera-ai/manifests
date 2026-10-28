@@ -15,6 +15,7 @@ resources:
 
 patches:
 - path: patches/topology-spread.yaml
+- path: patches/prestop-drain.yaml
 
 # The oauth2-proxy Secret is provided out-of-band by the provisioning layer; do
 # not generate a colliding copy that would overwrite the managed credentials.
