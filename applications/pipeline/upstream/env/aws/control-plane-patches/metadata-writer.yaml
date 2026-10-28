@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metadata-writer
+spec:
+  template:
+    spec:
+      priorityClassName: kubeflow-control-plane
+      containers:
+      - name: main
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
