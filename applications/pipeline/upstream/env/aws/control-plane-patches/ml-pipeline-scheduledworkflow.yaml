@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-pipeline-scheduledworkflow
+spec:
+  template:
+    spec:
+      priorityClassName: kubeflow-control-plane
+      containers:
+      - name: ml-pipeline-scheduledworkflow
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi

@@ -17,6 +17,8 @@ spec:
             - workflow-controller-configmap
             - --executor-image
             - quay.io/argoproj/argoexec:v4.1.6
+            - --log-format
+            - json
           env:
           - name: TRANSIENT_ERROR_PATTERN
             value: >-
@@ -31,6 +33,8 @@ spec:
             seccompProfile:
               type: RuntimeDefault
           resources:
+            limits:
+              memory: 4Gi
             requests:
               cpu: 100m
-              memory: 500Mi
+              memory: 1Gi
