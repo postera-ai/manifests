@@ -1,10 +1,13 @@
+# Connection-plane HA: upstream sets minAvailable 0 (drains unblocked, zero
+# protection). With the minReplicas:2 HPA patches (ha.yaml), minAvailable:1
+# keeps at least one activator/webhook replica through node rolls.
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: activator-pdb
   namespace: knative-serving
 spec:
-  minAvailable: 0
+  minAvailable: 1
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -12,4 +15,4 @@ metadata:
   name: webhook-pdb
   namespace: knative-serving
 spec:
-  minAvailable: 0
+  minAvailable: 1

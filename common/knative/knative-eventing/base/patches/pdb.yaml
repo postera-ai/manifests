@@ -1,7 +1,10 @@
+# Connection-plane HA: upstream sets minAvailable 0 (zero protection). With the
+# minReplicas:2 HPA patch (ha.yaml), minAvailable:1 keeps one eventing-webhook
+# replica through node rolls.
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: eventing-webhook
   namespace: knative-eventing
 spec:
-  minAvailable: 0
+  minAvailable: 1

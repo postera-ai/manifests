@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-features
+  namespace: knative-serving
+data:
+  # Allow Knative Services (KServe predictors and plain Knative Services) to set
+  # nodeSelector, tolerations, and topologySpreadConstraints on their pod spec.
+  # These feature flags default to "disabled" upstream; workloads that need
+  # GPU/node placement rely on them.
+  kubernetes.podspec-tolerations: "enabled"
+  kubernetes.podspec-nodeselector: "enabled"
+  kubernetes.podspec-topologyspreadconstraints: "enabled"
