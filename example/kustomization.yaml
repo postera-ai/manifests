@@ -40,24 +40,14 @@ resources:
 - ../common/istio/istio-crds/base
 - ../common/istio/istio-namespace/base
 - ../common/istio/istio-install/overlays/oauth2-proxy
-# NOTE: For Google Kubernetes Engine (GKE), use:
-# - ../common/istio/istio-install/overlays/gke
-# NOTE: For Istio Ambient Mode (sidecar-free), use one of:
-# - ../common/istio/istio-install/overlays/ambient-oauth2-proxy
-# - ../common/istio/istio-install/overlays/ambient-oauth2-proxy-gke
-# GKE mounts `/opt/cni/bin` as read-only. The GKE overlays use `/home/kubernetes/bin`.
-# For details, see [Istio CNI Prerequisites](https://istio.io/latest/docs/setup/additional-setup/cni/#prerequisites)
-# Oauth2-proxy
-# NOTE: only uncomment ONE of the following overlays, depending on your cluster type
-# - ../common/oauth2-proxy/overlays/m2m-dex-only # for all clusters
-- ../common/oauth2-proxy/overlays/m2m-dex-and-kind  # for KIND clusters (allows Kubernetes JWTs for authentication)
-# - ../common/oauth2-proxy/overlays/m2m-dex-and-eks   # for EKS clusters (NOTE: requires you to configure the issuer, see overlay)
+# Oauth2-proxy (EKS: also accepts EKS service-account JWTs; AWS_REGION and
+# CLUSTER_ID in the issuer are substituted per cluster)
+- ../common/oauth2-proxy/overlays/m2m-dex-and-eks
 # Dex
 - ../common/dex/overlays/oauth2-proxy
 # KNative
 - ../common/knative/knative-serving/overlays/gateways
-# Uncomment the following line if `knative-eventing` is required
-# - ../common/knative/knative-eventing/base
+- ../common/knative/knative-eventing/base
 - ../common/istio/cluster-local-gateway/base
 # Kubeflow namespace
 - ../common/kubeflow-namespace/base
@@ -65,38 +55,31 @@ resources:
 - ../common/kubeflow-roles/base
 # Kubeflow Istio Resources
 - ../common/istio/kubeflow-istio-resources/base
-# Kubeflow Pipelines (SeaweedFS as default S3 storage)
-- ../applications/pipeline/overlays  # Pipeline definitions stored in the database
-# - ../applications/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user-k8s-native # Pipeline Definitions Stored as Kubernetes Resources
+# Kubeflow Pipelines with external S3 (IRSA) and MySQL instead of the
+# in-cluster SeaweedFS and MySQL
+- ../applications/pipeline/upstream/env/aws
 # Katib
 - ../applications/katib/upstream/installs/katib-with-kubeflow
 # Central Dashboard
 - ../applications/dashboard/overlays/istio
-# Workspaces (Notebooks v2)
-- ../applications/workspaces/overlays/istio
-# Trainer
-- ../applications/trainer/overlays
 # User namespace
 - ../common/user-namespace/base
 # KServe
 - ../applications/kserve/kserve
 - ../applications/kserve/kserve-ui
-# Spark Operator
-- ../applications/spark/spark-operator/overlays/kubeflow
-# Hub — Model Registry (per-tenant: deployed to user profile namespace)
-- ../applications/hub/overlays/model-registry
-# Hub — Model Catalog (cluster-wide singleton: deployed to kubeflow namespace)
-- ../applications/hub/overlays/model-catalog
 
-# Ray is an experimental integration
-# Here is the documentation for Ray: https://docs.ray.io/en/latest/
-# Here is the internal documentation for Ray: - ../experimental/ray/README.md
-# - ../experimental/ray/kuberay-operator/overlays/kubeflow
 
-# Notebooks v1 (legacy, superseded by Kubeflow Workspaces)
-# Notebooks 1.0 is disabled by default in `example/kustomization.yaml` and will be removed in Kubeflow 27.03.
-# To enable it, also enable its Central Dashboard menu component below.
-# - ../applications/notebooks-v1/overlays/istio
-# Add the Notebooks v1 section to the Central Dashboard menu, which lists Workspaces by default
-# components:
-# - ../applications/notebooks-v1/components/centraldashboard
+# Not deployed: Workspaces, Notebooks v1, Trainer, Spark Operator and Hub.
+
+patches:
+# KServe's validating webhook rejects a multinode runtime with fewer than two
+# pipeline stages (one head plus one worker), so the bundled default of 1
+# cannot be applied.
+- patch: |-
+    - op: replace
+      path: /spec/workerSpec/pipelineParallelSize
+      value: 2
+  target:
+    group: serving.kserve.io
+    kind: ClusterServingRuntime
+    name: kserve-huggingfaceserver-multinode
