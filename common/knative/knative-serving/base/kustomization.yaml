@@ -9,6 +9,7 @@ resources:
 - allow-net-istio-webhook-apiserver.yaml
 - allow-istio-gateways-to-activator.yaml
 - default-allow-same-namespace.yaml
+- sidecar-autoscaler-egress.yaml
 
 patches:
 - path: patches/sidecar-injection.yaml
