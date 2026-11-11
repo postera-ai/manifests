@@ -6,3 +6,7 @@ spec:
   template:
     spec:
       priorityClassName: kubeflow-control-plane
+      containers:
+      - name: ml-pipeline-api-server
+        startupProbe:
+          failureThreshold: 180

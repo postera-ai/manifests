@@ -23,6 +23,12 @@ spec:
           - name: TRANSIENT_ERROR_PATTERN
             value: >-
               (?i)(imminent node shutdown|node is shutting down|preempt|evict|spot|pod deleted)
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 6060
+            periodSeconds: 10
+            failureThreshold: 90
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
