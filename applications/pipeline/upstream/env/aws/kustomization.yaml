@@ -36,6 +36,17 @@ patches:
 - path: control-plane-patches/ml-pipeline-scheduledworkflow.yaml
 - path: control-plane-patches/ml-pipeline.yaml
 - path: control-plane-patches/ml-pipeline-persistenceagent.yaml
+replacements:
+- source:
+    kind: ConfigMap
+    name: pipeline-install-config
+    fieldPath: data.defaultPipelineRoot
+  targets:
+  - select:
+      kind: ConfigMap
+      name: kfp-launcher
+    fieldPaths:
+    - data.defaultPipelineRoot
 # Identifier for application manager to apply ownerReference.
 # The ownerReference ensures the resources get garbage collected
 # when application is deleted.
