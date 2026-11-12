@@ -1,0 +1,15 @@
+# Keep serving for 15s after SIGTERM so oauth2-proxy and the gateways drop this
+# pod from their endpoints before dex stops accepting connections.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dex
+spec:
+  template:
+    spec:
+      containers:
+      - name: dex
+        lifecycle:
+          preStop:
+            sleep:
+              seconds: 15

@@ -5,10 +5,9 @@ metadata:
     app: ml-pipeline-ui
   name: ml-pipeline-ui
 spec:
-  # First adoption must stop pods using old keys before starting shared-key pods.
-  # Enable rolling updates after migration; see the server configuration guide.
+  replicas: 2
   strategy:
-    type: Recreate
+    type: RollingUpdate
   selector:
     matchLabels:
       app: ml-pipeline-ui
@@ -19,6 +18,13 @@ spec:
       annotations:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
     spec:
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: ml-pipeline-ui
       securityContext:
         runAsNonRoot: true
         seccompProfile:

@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istio-ingressgateway
+  namespace: istio-system
+spec:
+  template:
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+      - name: istio-proxy
+        lifecycle:
+          preStop:
+            sleep:
+              seconds: 30

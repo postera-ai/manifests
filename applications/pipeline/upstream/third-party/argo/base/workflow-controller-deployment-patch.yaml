@@ -17,10 +17,18 @@ spec:
             - workflow-controller-configmap
             - --executor-image
             - quay.io/argoproj/argoexec:v4.1.6
+            - --log-format
+            - json
           env:
           - name: TRANSIENT_ERROR_PATTERN
             value: >-
               (?i)(imminent node shutdown|node is shutting down|preempt|evict|spot|pod deleted)
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 6060
+            periodSeconds: 10
+            failureThreshold: 90
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
@@ -31,6 +39,8 @@ spec:
             seccompProfile:
               type: RuntimeDefault
           resources:
+            limits:
+              memory: 4Gi
             requests:
               cpu: 100m
-              memory: 500Mi
+              memory: 1Gi

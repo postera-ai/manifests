@@ -1,0 +1,12 @@
+apiVersion: networking.istio.io/v1
+kind: Sidecar
+metadata:
+  name: knative-autoscaler-exception
+  namespace: knative-serving
+spec:
+  workloadSelector:
+    labels:
+      app: autoscaler
+  egress:
+  - hosts:
+    - "*/*"

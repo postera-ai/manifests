@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: activator
+  namespace: knative-serving
+spec:
+  template:
+    spec:
+      # Must stay above config-defaults' max-revision-timeout-seconds, with
+      # margin for SIGTERM propagation/drain overhead.
+      terminationGracePeriodSeconds: 1860
