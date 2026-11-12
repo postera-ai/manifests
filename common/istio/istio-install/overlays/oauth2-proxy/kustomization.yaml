@@ -11,3 +11,4 @@ components:
 
 patches:
 - path: istio-ingressgateway-lb-patch.yaml
+- path: istio-ingressgateway-drain-patch.yaml

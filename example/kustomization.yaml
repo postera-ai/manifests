@@ -83,3 +83,10 @@ patches:
     group: serving.kserve.io
     kind: ClusterServingRuntime
     name: kserve-huggingfaceserver-multinode
+- patch: |-
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: istio-system
+      labels:
+        elbv2.k8s.aws/pod-readiness-gate-inject: enabled
