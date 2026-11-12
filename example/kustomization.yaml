@@ -90,3 +90,17 @@ patches:
       name: istio-system
       labels:
         elbv2.k8s.aws/pod-readiness-gate-inject: enabled
+- patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: profiles-deployment
+      namespace: kubeflow
+    spec:
+      template:
+        spec:
+          containers:
+          - name: manager
+            env:
+            - name: AWS_REGION
+              value: us-west-2
